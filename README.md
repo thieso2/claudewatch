@@ -74,8 +74,11 @@ claudewatch --interval 500ms --show-helpers
 |-----|--------|
 | `↑` / `k` | Navigate up |
 | `↓` / `j` | Navigate down |
-| `enter` | View sessions for selected process |
-| `esc` | Go back to process list |
+| `enter` | View sessions or session details |
+| `esc` | Go back to previous view |
+| `u` | Show user prompts only (session detail view) |
+| `a` | Show Claude responses only (session detail view) |
+| `b` | Show both prompts and responses (session detail view) |
 | `r` | Manual refresh (process view only) |
 | `f` | Toggle MCP helper processes visibility (process view only) |
 | `q` / `Ctrl+C` | Quit |
@@ -108,6 +111,20 @@ Press **Enter** while a process is selected to view all Claude sessions created 
 - Direct file path to the session JSONL file
 
 This allows you to quickly find and reference specific coding sessions associated with each Claude instance.
+
+## Filtering Messages
+
+In the **Session Detail View**, you can filter messages to see:
+
+- **Your prompts only**: Press `u` to show only the messages you typed
+- **Claude's responses only**: Press `a` to show only Claude's responses
+- **Full conversation**: Press `b` to show all messages
+
+Messages are marked with:
+- 👤 for your prompts (user)
+- 🤖 for Claude's responses (assistant)
+
+This separation makes it easy to review your original instructions or see what Claude generated without the noise of the full conversation.
 
 ## Architecture
 
