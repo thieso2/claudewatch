@@ -83,6 +83,35 @@ func (m Model) renderSessionDetailView() string {
 		Foreground(lipgloss.Color("8"))
 	pathText := pathStyle.Render(sessionPath)
 
+	// Session metadata line (version, git, tokens, etc.)
+	var metadataItems []string
+	if m.selectedSession != nil {
+		if m.selectedSession.Version != "" {
+			metadataItems = append(metadataItems, "v:"+m.selectedSession.Version)
+		}
+		if m.selectedSession.GitBranch != "" {
+			metadataItems = append(metadataItems, "git:"+m.selectedSession.GitBranch)
+		}
+		if m.selectedSession.IsSidechain {
+			metadataItems = append(metadataItems, "🔀side-chain")
+		}
+		if m.selectedSession.TotalTokens > 0 {
+			tokens := fmt.Sprintf("tokens:%d", m.selectedSession.TotalTokens)
+			if m.selectedSession.InputTokens > 0 && m.selectedSession.OutputTokens > 0 {
+				tokens = fmt.Sprintf("tokens:%d/%d", m.selectedSession.InputTokens, m.selectedSession.OutputTokens)
+			}
+			metadataItems = append(metadataItems, tokens)
+		}
+	}
+
+	metadataText := ""
+	if len(metadataItems) > 0 {
+		metadataStr := strings.Join(metadataItems, "  |  ")
+		metadataStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("8"))
+		metadataText = metadataStyle.Render(metadataStr)
+	}
+
 	// Stats section
 	statsStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("10"))
@@ -148,18 +177,17 @@ func (m Model) renderSessionDetailView() string {
 	helpText := "↑/↓: Navigate  |  u: User prompts  |  a: Claude responses  |  b: Both  |  esc: Back  |  q: Quit"
 	footer := footerStyle.Render(helpText)
 
+	headerComponents := []string{headerTitle, pathText}
+	if metadataText != "" {
+		headerComponents = append(headerComponents, metadataText)
+	}
+	headerComponents = append(headerComponents, "", statsText, detailedStats, "", "Messages:" + filterText)
+
+	allComponents := append(headerComponents, messagesContent, "", footer)
+
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		headerTitle,
-		pathText,
-		"",
-		statsText,
-		detailedStats,
-		"",
-		"Messages:" + filterText,
-		messagesContent,
-		"",
-		footer,
+		allComponents...,
 	)
 }
 
