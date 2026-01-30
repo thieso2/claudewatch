@@ -1,6 +1,7 @@
 bin/
 *.dylib
 *.so
-claudewatch
+/claudewatch
+/claudewatch-*
 dist/
 .DS_Store
