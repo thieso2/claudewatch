@@ -203,15 +203,16 @@ func (m *Model) scrollToSelection() {
 // NewModel creates a new UI model
 func NewModel(updateInterval time.Duration, showHelpers bool) Model {
 	m := Model{
-		updateInterval: updateInterval,
-		showHelpers:    showHelpers,
-		sortColumn:     "pid",
-		sortAscending:  true,
-		viewMode:       ViewProcesses,
-		selectedProcIdx: 0,
-		messageFilter:  FilterAll,
-		termWidth:      80,  // Default terminal width
-		termHeight:     24,  // Default terminal height
+		updateInterval:         updateInterval,
+		showHelpers:            showHelpers,
+		sortColumn:             "pid",
+		sortAscending:          true,
+		viewMode:               ViewProcesses,
+		selectedProcIdx:        0,
+		messageFilter:          FilterAll,
+		messageSortNewestFirst: true,  // Default: show newest messages first
+		termWidth:              80,    // Default terminal width
+		termHeight:             24,    // Default terminal height
 	}
 
 	m.table = createTableWithWidth(m.termWidth)
