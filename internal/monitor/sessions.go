@@ -150,11 +150,7 @@ func readSessionFile(filePath string) (Session, error) {
 // convertPathToSessionDirName converts a file path to the session directory format
 // /Users/thies/Projects/foo -> -Users-thies-Projects-foo
 func convertPathToSessionDirName(path string) string {
-	// Replace leading slash
-	if strings.HasPrefix(path, "/") {
-		path = path[1:]
-	}
-	// Replace all slashes with dashes
+	// Replace all slashes with dashes (including the leading one)
 	return strings.ReplaceAll(path, "/", "-")
 }
 
