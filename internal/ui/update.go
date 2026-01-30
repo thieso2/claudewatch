@@ -692,6 +692,15 @@ func (m *Model) getFilteredMessages(stats *monitor.SessionStats) []monitor.Messa
 			filteredMessages = append(filteredMessages, msg)
 		}
 	}
+
+	// Apply same sort order as displayed in message list
+	if m.messageSortNewestFirst {
+		// Reverse to show newest first
+		for i, j := 0, len(filteredMessages)-1; i < j; i, j = i+1, j-1 {
+			filteredMessages[i], filteredMessages[j] = filteredMessages[j], filteredMessages[i]
+		}
+	}
+
 	return filteredMessages
 }
 
