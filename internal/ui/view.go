@@ -571,20 +571,14 @@ func (m *Model) renderMessageCards() string {
 }
 
 // renderMessageCard renders a single message as a fixed-height card (4 lines)
-// Standard format: Header | Content | Metrics | Separator
+// Beautiful format with centered vertical alignment for selected card
 func renderMessageCard(msg MessageRow, isSelected bool) string {
-	// Cursor indicator
-	cursor := "  "
-	if isSelected {
-		cursor = "▶"
-	}
-
 	// Role emoji and label
 	roleEmoji := "👤"
-	roleLabel := "U"
+	roleLabel := "user"
 	if msg.Role == "assistant" {
 		roleEmoji = "🤖"
-		roleLabel = "A"
+		roleLabel = "assistant"
 	}
 
 	// Parse timestamp HH:MM
@@ -599,60 +593,77 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 		}
 	}
 
-	// Build header: [cursor] [role] time [model]
-	headerParts := []string{cursor, roleEmoji, roleLabel}
+	// Build header with left-aligned icon
+	// Format: [emoji] role  time  [model]
+	headerParts := []string{roleEmoji}
+	headerParts = append(headerParts, roleLabel)
+
 	if headerTime != "" {
-		headerParts = append(headerParts, headerTime)
+		headerParts = append(headerParts, "·", headerTime)
 	}
+
 	if msg.Model != "" && msg.Role == "assistant" {
-		// Extract model name (e.g., "claude-sonnet" from full model ID)
+		// Extract model name
 		modelParts := strings.Split(msg.Model, "-")
 		if len(modelParts) > 0 {
-			headerParts = append(headerParts, modelParts[0])
+			headerParts = append(headerParts, "·", modelParts[0])
 		}
 	}
 
 	headerText := strings.Join(headerParts, " ")
+
 	var headerLine string
 	if isSelected {
+		// Bright, bold header with background for selected
 		headerStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("226")).     // Bright yellow
-			Background(lipgloss.Color("57")).      // Dark blue
+			Foreground(lipgloss.Color("228")).     // Bright yellow
+			Background(lipgloss.Color("23")).      // Dark blue
 			Bold(true).
 			Padding(0, 1)
 		headerLine = headerStyle.Render(headerText)
 	} else {
+		// Subtle styling for non-selected
 		headerStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("11"))
+			Foreground(lipgloss.Color("244"))      // Gray
 		headerLine = headerStyle.Render(headerText)
 	}
 
-	// Message content - single line
+	// Message content - single line, truncated
 	contentCompact := strings.ReplaceAll(msg.Content, "\n", " ")
 	contentCompact = strings.Join(strings.Fields(contentCompact), " ")
 	if len(contentCompact) > 150 {
 		contentCompact = contentCompact[:147] + "…"
 	}
-	contentLine := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("255")).
-		Render(contentCompact)
 
-	// Build metrics line (single line for all info)
+	var contentLine string
+	if isSelected {
+		// Bright text for selected content
+		contentLine = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("255")).
+			Bold(true).
+			Render(contentCompact)
+	} else {
+		// Regular text for non-selected
+		contentLine = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("250")).
+			Render(contentCompact)
+	}
+
+	// Build metrics line with better formatting
 	var metricStr string
 	if msg.Role == "assistant" {
-		// Show: In:123 Out:456 Cost:$0.0234
 		if msg.InputTokens > 0 || msg.OutputTokens > 0 {
 			parts := []string{
-				fmt.Sprintf("In:%d", msg.InputTokens),
-				fmt.Sprintf("Out:%d", msg.OutputTokens),
+				fmt.Sprintf("in:%d", msg.InputTokens),
+				fmt.Sprintf("out:%d", msg.OutputTokens),
 			}
 
-			// Add cache info if present
+			// Add cache info
 			if msg.CacheRead > 0 {
-				parts = append(parts, fmt.Sprintf("Cache:↻%d", msg.CacheRead))
+				parts = append(parts, fmt.Sprintf("cache:↻%d", msg.CacheRead))
 			}
 
-			// Add cost with color
+			// Cost with color
 			costColor := "10" // Green
 			if msg.Cost > 0.10 {
 				costColor = "1" // Red
@@ -662,40 +673,42 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 			costStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(costColor))
 			parts = append(parts, costStyle.Render(fmt.Sprintf("$%.4f", msg.Cost)))
 
-			metricStr = strings.Join(parts, " • ")
+			metricStr = strings.Join(parts, " ")
 		}
 	} else {
-		// User message: Tokens:123 Cost:$0.000001
+		// User message metrics
 		parts := []string{
-			fmt.Sprintf("Tokens:%d", msg.InputTokens),
+			fmt.Sprintf("tokens:%d", msg.InputTokens),
 		}
 
 		if msg.Cost > 0 {
-			costColor := "10" // Green
+			costColor := "10"
 			if msg.Cost > 0.01 {
-				costColor = "3" // Yellow
+				costColor = "3"
 			}
 			costStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(costColor))
 			parts = append(parts, costStyle.Render(fmt.Sprintf("$%.6f", msg.Cost)))
 		}
 
-		metricStr = strings.Join(parts, " • ")
+		metricStr = strings.Join(parts, " ")
 	}
 
 	metricLine := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("6")).
-		Render(metricStr)
+		Foreground(lipgloss.Color("8")).
+		Render("  " + metricStr) // Indent slightly
 
-	// Separator line
+	// Separator with different styles
 	var separatorLine string
 	if isSelected {
+		// Bright separator
 		separatorLine = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("226")).
-			Render(strings.Repeat("━", 100))
+			Render("  " + strings.Repeat("▬", 98)) // Double line for selected
 	} else {
+		// Subtle separator
 		separatorLine = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("8")).
-			Render(strings.Repeat("─", 100))
+			Foreground(lipgloss.Color("238")).
+			Render("  " + strings.Repeat("─", 98))
 	}
 
 	// Build card: always 4 lines

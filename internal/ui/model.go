@@ -159,7 +159,7 @@ type projectsMsg struct {
 	err      error
 }
 
-// scrollToSelection scrolls the viewport to keep selected message visible
+// scrollToSelection scrolls the viewport to center the selected card vertically
 // Each message card is exactly 4 lines (header + content + metrics + separator)
 func (m *Model) scrollToSelection() {
 	if len(m.messages) == 0 || m.selectedMessageIdx < 0 {
@@ -168,36 +168,33 @@ func (m *Model) scrollToSelection() {
 
 	const linesPerCard = 4
 
-	// Calculate scroll delta based on message movement
-	messageDelta := m.selectedMessageIdx - m.lastMessageIdx
-	linesDelta := messageDelta * linesPerCard
+	// Calculate the line offset where the selected card starts
+	selectedCardLineOffset := m.selectedMessageIdx * linesPerCard
 
-	// Scroll by the exact amount needed
-	if linesDelta > 0 {
-		m.messageViewport.LineDown(linesDelta)
-	} else if linesDelta < 0 {
-		m.messageViewport.LineUp(-linesDelta)
-	}
+	// Target: center the selected card vertically
+	// Want: selectedCard appears at viewport middle (viewportHeight / 2)
+	// So: scroll so that card starts at (middle - cardHeight/2) = (middle - 2)
+	targetTopLine := selectedCardLineOffset - (m.messageViewport.Height / 2) + 2
 
-	// Update last position
-	m.lastMessageIdx = m.selectedMessageIdx
-
-	// Ensure we're within bounds
+	// Clamp to valid range
 	totalContentLines := len(m.messages) * linesPerCard
 	maxOffset := totalContentLines - m.messageViewport.Height
 	if maxOffset < 0 {
 		maxOffset = 0
 	}
 
-	currentOffset := m.messageViewport.YOffset
-	if currentOffset > maxOffset {
-		// Scrolled past the end, adjust back
-		m.messageViewport.GotoTop()
-		m.messageViewport.LineDown(maxOffset)
-	} else if currentOffset < 0 {
-		// Scrolled above start, reset to top
-		m.messageViewport.GotoTop()
+	if targetTopLine < 0 {
+		targetTopLine = 0
+	} else if targetTopLine > maxOffset {
+		targetTopLine = maxOffset
 	}
+
+	// Move to target position
+	m.messageViewport.GotoTop()
+	m.messageViewport.LineDown(targetTopLine)
+
+	// Update last position
+	m.lastMessageIdx = m.selectedMessageIdx
 }
 
 // NewModel creates a new UI model
