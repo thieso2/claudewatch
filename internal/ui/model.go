@@ -28,9 +28,11 @@ type SessionInfo struct {
 	IsSidechain   bool      // Whether this is a side/branching conversation
 	Version       string    // Claude version (e.g., "2.1.1")
 	FirstPrompt   string    // The initial prompt that started the session
-	TotalTokens   int       // Total tokens used in session (input + output)
-	InputTokens   int       // Total input tokens
-	OutputTokens  int       // Total output tokens
+	TotalTokens     int       // Total tokens used in session (input + output)
+	InputTokens     int       // Total input tokens
+	OutputTokens    int       // Total output tokens
+	LastMessage     string    // Last message in the session
+	LastMessageTime int64     // Unix timestamp of last message
 }
 
 // MessageRow represents a message for display in the message card view
