@@ -34,6 +34,14 @@ const (
 	ViewSessionDetail
 )
 
+type MessageFilter int
+
+const (
+	FilterAll MessageFilter = iota
+	FilterUserOnly
+	FilterAssistantOnly
+)
+
 // Model represents the main UI state
 type Model struct {
 	// Main view
@@ -62,7 +70,10 @@ type Model struct {
 	messages         []MessageRow
 	messageError     string
 	scrollOffset     int
+	messageFilter    MessageFilter // Filter for messages
 }
+
+
 
 // tickMsg is used for periodic updates
 type tickMsg time.Time
@@ -94,6 +105,7 @@ func NewModel(updateInterval time.Duration, showHelpers bool) Model {
 		sortAscending:  true,
 		viewMode:       ViewProcesses,
 		selectedProcIdx: 0,
+		messageFilter:  FilterAll,
 	}
 
 	m.table = createTable()

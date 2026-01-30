@@ -98,10 +98,24 @@ func (m Model) renderSessionDetailView() string {
 		messagesContent = m.messageTable.View()
 	}
 
+	// Filter status
+	filterStr := ""
+	switch m.messageFilter {
+	case FilterUserOnly:
+		filterStr = " [Showing: User Prompts Only]"
+	case FilterAssistantOnly:
+		filterStr = " [Showing: Claude Responses Only]"
+	default:
+		filterStr = " [Showing: All Messages]"
+	}
+	filterStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("11"))
+	filterText := filterStyle.Render(filterStr)
+
 	// Footer
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8"))
-	helpText := "↑/↓: Navigate  |  esc: Back  |  q: Quit"
+	helpText := "↑/↓: Navigate  |  u: User prompts  |  a: Claude responses  |  b: Both  |  esc: Back  |  q: Quit"
 	footer := footerStyle.Render(helpText)
 
 	return lipgloss.JoinVertical(
@@ -112,7 +126,7 @@ func (m Model) renderSessionDetailView() string {
 		statsText,
 		detailedStats,
 		"",
-		"Messages:",
+		"Messages:" + filterText,
 		messagesContent,
 		"",
 		footer,

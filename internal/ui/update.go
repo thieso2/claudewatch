@@ -46,6 +46,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.showHelpers = !m.showHelpers
 				return m, m.refreshProcesses()
 			}
+		case "u":
+			// Filter to user messages only (in session detail view)
+			if m.viewMode == ViewSessionDetail {
+				m.messageFilter = FilterUserOnly
+				m.updateMessageTable()
+				return m, nil
+			}
+		case "a":
+			// Filter to assistant messages only (in session detail view)
+			if m.viewMode == ViewSessionDetail {
+				m.messageFilter = FilterAssistantOnly
+				m.updateMessageTable()
+				return m, nil
+			}
+		case "b":
+			// Show both (all messages)
+			if m.viewMode == ViewSessionDetail {
+				m.messageFilter = FilterAll
+				m.updateMessageTable()
+				return m, nil
+			}
 		case "enter":
 			// Open session view for selected process or session detail for selected session
 			if m.viewMode == ViewProcesses && len(m.processes) > 0 && m.selectedProcIdx >= 0 && m.selectedProcIdx < len(m.processes) {
@@ -54,6 +75,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.loadSessions()
 			} else if m.viewMode == ViewSessions && len(m.sessions) > 0 && m.selectedSessionIdx >= 0 && m.selectedSessionIdx < len(m.sessions) {
 				m.viewMode = ViewSessionDetail
+				m.messageFilter = FilterAll // Reset filter when opening new session
 				return m, m.loadSessionDetail()
 			}
 		}
@@ -191,24 +213,49 @@ func (m *Model) updateMessageTable() {
 		return
 	}
 
-	// Convert messages to table rows
-	rows := make([]table.Row, len(stats.MessageHistory))
+	// Filter messages based on current filter
+	var filteredMessages []monitor.Message
+	for _, msg := range stats.MessageHistory {
+		switch m.messageFilter {
+		case FilterUserOnly:
+			if msg.Role == "user" {
+				filteredMessages = append(filteredMessages, msg)
+			}
+		case FilterAssistantOnly:
+			if msg.Role == "assistant" {
+				filteredMessages = append(filteredMessages, msg)
+			}
+		default: // FilterAll
+			filteredMessages = append(filteredMessages, msg)
+		}
+	}
 
-	for i, msg := range stats.MessageHistory {
+	// Convert messages to table rows
+	rows := make([]table.Row, len(filteredMessages))
+
+	for i, msg := range filteredMessages {
 		// Truncate content for display
 		content := msg.Content
 		if len(content) > 76 {
 			content = content[:73] + "..."
 		}
-		// Replace newlines
+		// Replace newlines with spaces
 		for j := 0; j < len(content); j++ {
 			if content[j] == '\n' {
 				content = content[:j] + " " + content[j+1:]
 			}
 		}
 
+		// Create a marker for the role
+		roleStr := msg.Role
+		if msg.Role == "user" {
+			roleStr = "👤 user"
+		} else if msg.Role == "assistant" {
+			roleStr = "🤖 assistant"
+		}
+
 		rows[i] = table.NewRow(table.RowData{
-			"role":    msg.Role,
+			"role":    roleStr,
 			"content": content,
 			"time":    msg.Timestamp.Format("15:04:05"),
 		})
