@@ -295,14 +295,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if m.selectedMessageIdx > 0 {
 						m.selectedMessageIdx--
 						needsRender = true
-						m.messageViewport.LineUp(1)
+						// Scroll up to keep selection visible (multiple lines per message)
+						m.messageViewport.LineUp(5)
 					}
 				case "down":
 					// Move cursor down
 					if m.selectedMessageIdx < len(m.messages)-1 {
 						m.selectedMessageIdx++
 						needsRender = true
-						m.messageViewport.LineDown(1)
+						// Scroll down to keep selection visible (multiple lines per message)
+						// Use more aggressive scrolling near the end
+						scrollAmount := 5
+						if m.selectedMessageIdx > len(m.messages)-10 {
+							scrollAmount = 10 // Scroll more aggressively near the end
+						}
+						m.messageViewport.LineDown(scrollAmount)
 					}
 				case "pgup":
 					// Page up
@@ -316,8 +323,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.messageViewport.GotoTop()
 					needsRender = true
 				case "end":
-					// Jump to bottom
+					// Jump to bottom - ensure cursor is visible
 					m.selectedMessageIdx = len(m.messages) - 1
+					// Scroll past the end slightly to ensure the last message is visible
 					m.messageViewport.GotoBottom()
 					needsRender = true
 				case "enter":
