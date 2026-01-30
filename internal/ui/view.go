@@ -398,99 +398,128 @@ func footerHint() string {
 }
 
 // renderMessageDetailView displays a message with full text and line wrapping
+// Creates type-specific beautiful layouts for user messages, assistant responses, tool calls, etc.
 func (m Model) renderMessageDetailView() string {
 	if m.detailMessage == nil {
 		return "Error: No message to display\n"
 	}
 
-	// Header with message info
-	roleStr := "Message"
-	switch m.detailMessage.Type {
-	case "prompt":
-		roleStr = "Your Prompt"
-	case "assistant_response":
-		if m.detailMessage.ToolName != "" {
-			roleStr = fmt.Sprintf("Claude Tool Call: %s", m.detailMessage.ToolName)
+	msg := m.detailMessage
+
+	// Build header based on message type
+	var headerTitle, metadataSection string
+
+	if msg.Role == "user" {
+		// User message style
+		headerTitle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("226")).
+			Render("👤 YOUR PROMPT")
+
+		timeStr := msg.Timestamp.Format("2006-01-02 15:04:05 MST")
+		metadataSection = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("244")).
+			Render(fmt.Sprintf("sent at %s", timeStr))
+
+	} else if msg.Role == "assistant" {
+		if msg.ToolName != "" {
+			// Tool call style
+			headerTitle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("82")).
+				Render(fmt.Sprintf("🔧 TOOL CALL: %s", strings.ToUpper(msg.ToolName)))
+
+			var toolDetails []string
+			toolDetails = append(toolDetails, fmt.Sprintf("Tool: %s", msg.ToolName))
+
+			if msg.ToolInput != "" {
+				toolDetails = append(toolDetails, fmt.Sprintf("Arguments: %s", msg.ToolInput))
+			}
+
+			metadataSection = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("11")).
+				Render(strings.Join(toolDetails, " • "))
 		} else {
-			roleStr = "Claude Response"
+			// Regular assistant response
+			headerTitle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("51")).
+				Render("🤖 CLAUDE RESPONSE")
+
+			// Build metadata for assistant message
+			var metaParts []string
+			timeStr := msg.Timestamp.Format("15:04:05")
+			metaParts = append(metaParts, timeStr)
+
+			if msg.Model != "" {
+				modelParts := strings.Split(msg.Model, "-")
+				if len(modelParts) > 0 {
+					metaParts = append(metaParts, modelParts[0])
+				}
+			}
+
+			if msg.InputTokens > 0 || msg.OutputTokens > 0 {
+				metaParts = append(metaParts,
+					fmt.Sprintf("in:%d", msg.InputTokens),
+					fmt.Sprintf("out:%d", msg.OutputTokens),
+				)
+
+				if msg.CacheRead > 0 {
+					metaParts = append(metaParts, fmt.Sprintf("cache:↻%d", msg.CacheRead))
+				}
+
+				// Cost calculation
+				inputCost := float64(msg.InputTokens+msg.CacheCreation) * 0.000003
+				cacheReadCost := float64(msg.CacheRead) * 0.0000003
+				outputCost := float64(msg.OutputTokens) * 0.000015
+				totalCost := inputCost + cacheReadCost + outputCost
+
+				costColor := "10" // Green
+				if totalCost > 0.10 {
+					costColor = "1" // Red
+				} else if totalCost > 0.01 {
+					costColor = "3" // Yellow
+				}
+				costStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(costColor))
+				metaParts = append(metaParts, costStyle.Render(fmt.Sprintf("$%.4f", totalCost)))
+			}
+
+			metadataSection = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("244")).
+				Render(strings.Join(metaParts, " · "))
 		}
-	case "tool_result":
-		roleStr = fmt.Sprintf("Tool Result: %s", m.detailMessage.ToolName)
-	default:
-		if m.detailMessage.Role == "user" {
-			roleStr = "Your Message"
-		} else if m.detailMessage.Role == "assistant" {
-			roleStr = "Claude Response"
-		}
+	} else {
+		// Fallback for other types
+		headerTitle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("11")).
+			Render("MESSAGE")
+		metadataSection = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("244")).
+			Render(msg.Timestamp.Format("2006-01-02 15:04:05"))
 	}
 
-	headerTitle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("11")).
-		Render(roleStr)
-
-	timeStr := m.detailMessage.Timestamp.Format("2006-01-02 15:04:05")
-	timeStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("8"))
-	timeText := timeStyle.Render(fmt.Sprintf("Time: %s", timeStr))
-
-	// Tool info if available
-	var toolInfoText string
-	if m.detailMessage.ToolName != "" {
-		toolInfo := fmt.Sprintf("Tool: %s", m.detailMessage.ToolName)
-		if m.detailMessage.ToolInput != "" {
-			toolInfo += fmt.Sprintf(" | Arguments: %s", m.detailMessage.ToolInput)
-		}
-		toolInfoStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("10"))
-		toolInfoText = toolInfoStyle.Render(toolInfo)
-	}
-
-	// Token usage info if available (for assistant responses)
-	var tokenInfoText string
-	if m.detailMessage.Type == "assistant_response" && (m.detailMessage.InputTokens > 0 || m.detailMessage.OutputTokens > 0) {
-		var tokenInfo string
-		tokenInfo = fmt.Sprintf("Model: %s", m.detailMessage.Model)
-		tokenInfo += fmt.Sprintf(" | Tokens: %d → %d", m.detailMessage.InputTokens, m.detailMessage.OutputTokens)
-
-		// Show cache info if available
-		if m.detailMessage.CacheCreation > 0 {
-			tokenInfo += fmt.Sprintf(" | Cache-Create: %d", m.detailMessage.CacheCreation)
-		}
-		if m.detailMessage.CacheRead > 0 {
-			tokenInfo += fmt.Sprintf(" | Cache-Hit: %d", m.detailMessage.CacheRead)
-		}
-
-		// Calculate cost estimate (Claude 3.5 Sonnet pricing)
-		inputCost := float64(m.detailMessage.InputTokens+m.detailMessage.CacheCreation) * 0.000003
-		cacheReadCost := float64(m.detailMessage.CacheRead) * 0.0000003
-		outputCost := float64(m.detailMessage.OutputTokens) * 0.000015
-		totalCost := inputCost + cacheReadCost + outputCost
-		tokenInfo += fmt.Sprintf(" | Approx: $%.6f", totalCost)
-
-		tokenInfoStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("6"))
-		tokenInfoText = tokenInfoStyle.Render(tokenInfo)
-	}
+	// Separator line
+	separator := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("238")).
+		Render(strings.Repeat("─", 88))
 
 	// Content with wrapping
-	content := m.detailMessage.Content
+	content := msg.Content
 	lines := strings.Split(content, "\n")
 
 	// Calculate visible lines based on terminal height
-	pageHeight := m.termHeight - 6 // Leave space for header and footer
+	pageHeight := m.termHeight - 8 // Leave space for header, footer, metadata
 	if pageHeight < 5 {
 		pageHeight = 5 // Minimum
 	}
 
 	// Get the visible portion of lines
-	visibleLines := lines
+	var visibleLines []string
 	if m.detailScrollOffset+pageHeight < len(lines) {
 		visibleLines = lines[m.detailScrollOffset : m.detailScrollOffset+pageHeight]
 	} else if m.detailScrollOffset < len(lines) {
 		visibleLines = lines[m.detailScrollOffset:]
-	} else {
-		visibleLines = []string{}
 	}
 
 	// Display content with word wrapping for long lines
@@ -533,18 +562,20 @@ func (m Model) renderMessageDetailView() string {
 	// Footer with help
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8"))
-	helpText := "↑/↓: Scroll  |  ←/→: Prev/Next Message  |  PgUp/PgDn: Page  |  Home/End: Jump  |  esc: Back  |  q: Quit"
+	helpText := "↑/↓: Scroll  |  ←/→: Prev/Next  |  PgUp/PgDn: Page  |  Home/End: Jump  |  esc: Back  |  q: Quit"
 	footer := footerStyle.Render(helpText)
 
-	// Build output with optional tool and token info
-	output := []string{headerTitle, timeText}
-	if toolInfoText != "" {
-		output = append(output, toolInfoText)
+	// Build output
+	output := []string{
+		headerTitle,
+		metadataSection,
+		separator,
+		"",
+		contentText,
+		"",
+		scrollText,
+		footer,
 	}
-	if tokenInfoText != "" {
-		output = append(output, tokenInfoText)
-	}
-	output = append(output, "", contentText, "", scrollText, footer)
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -571,7 +602,7 @@ func (m *Model) renderMessageCards() string {
 }
 
 // renderMessageCard renders a single message as a fixed-height card (4 lines)
-// Beautiful format with centered vertical alignment for selected card
+// Beautiful format with proper left alignment
 func renderMessageCard(msg MessageRow, isSelected bool) string {
 	// Role emoji and label
 	roleEmoji := "👤"
@@ -594,9 +625,8 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 	}
 
 	// Build header with left-aligned icon
-	// Format: [emoji] role  time  [model]
-	headerParts := []string{roleEmoji}
-	headerParts = append(headerParts, roleLabel)
+	// Format: [emoji] role · time · model
+	headerParts := []string{roleEmoji, roleLabel}
 
 	if headerTime != "" {
 		headerParts = append(headerParts, "·", headerTime)
@@ -616,15 +646,15 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 	if isSelected {
 		// Bright, bold header with background for selected
 		headerStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("228")).     // Bright yellow
-			Background(lipgloss.Color("23")).      // Dark blue
+			Foreground(lipgloss.Color("228")).
+			Background(lipgloss.Color("23")).
 			Bold(true).
 			Padding(0, 1)
 		headerLine = headerStyle.Render(headerText)
 	} else {
 		// Subtle styling for non-selected
 		headerStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("244"))      // Gray
+			Foreground(lipgloss.Color("244"))
 		headerLine = headerStyle.Render(headerText)
 	}
 
@@ -649,18 +679,18 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 			Render(contentCompact)
 	}
 
-	// Build metrics line with better formatting
-	var metricStr string
+	// Build metrics line with proper left alignment
+	var metricParts []string
 	if msg.Role == "assistant" {
 		if msg.InputTokens > 0 || msg.OutputTokens > 0 {
-			parts := []string{
+			metricParts = append(metricParts,
 				fmt.Sprintf("in:%d", msg.InputTokens),
 				fmt.Sprintf("out:%d", msg.OutputTokens),
-			}
+			)
 
 			// Add cache info
 			if msg.CacheRead > 0 {
-				parts = append(parts, fmt.Sprintf("cache:↻%d", msg.CacheRead))
+				metricParts = append(metricParts, fmt.Sprintf("cache:↻%d", msg.CacheRead))
 			}
 
 			// Cost with color
@@ -671,15 +701,11 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 				costColor = "3" // Yellow
 			}
 			costStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(costColor))
-			parts = append(parts, costStyle.Render(fmt.Sprintf("$%.4f", msg.Cost)))
-
-			metricStr = strings.Join(parts, " ")
+			metricParts = append(metricParts, costStyle.Render(fmt.Sprintf("$%.4f", msg.Cost)))
 		}
 	} else {
 		// User message metrics
-		parts := []string{
-			fmt.Sprintf("tokens:%d", msg.InputTokens),
-		}
+		metricParts = append(metricParts, fmt.Sprintf("tokens:%d", msg.InputTokens))
 
 		if msg.Cost > 0 {
 			costColor := "10"
@@ -687,31 +713,30 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 				costColor = "3"
 			}
 			costStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(costColor))
-			parts = append(parts, costStyle.Render(fmt.Sprintf("$%.6f", msg.Cost)))
+			metricParts = append(metricParts, costStyle.Render(fmt.Sprintf("$%.6f", msg.Cost)))
 		}
-
-		metricStr = strings.Join(parts, " ")
 	}
 
+	metricStr := strings.Join(metricParts, " ")
 	metricLine := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8")).
-		Render("  " + metricStr) // Indent slightly
+		Render(metricStr)
 
-	// Separator with different styles
+	// Separator - no leading spaces, just use full width up to reasonable length
 	var separatorLine string
 	if isSelected {
-		// Bright separator
+		// Bright separator for selected
 		separatorLine = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("226")).
-			Render("  " + strings.Repeat("▬", 98)) // Double line for selected
+			Render(strings.Repeat("▬", 88))
 	} else {
-		// Subtle separator
+		// Subtle separator for non-selected
 		separatorLine = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("238")).
-			Render("  " + strings.Repeat("─", 98))
+			Render(strings.Repeat("─", 88))
 	}
 
-	// Build card: always 4 lines
+	// Build card: always 4 lines (left-aligned)
 	var lines []string
 	lines = append(lines, headerLine)
 	lines = append(lines, contentLine)
