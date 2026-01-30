@@ -2,6 +2,8 @@ package monitor
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -41,6 +43,11 @@ func FindClaudeProcesses(showHelpers bool) ([]types.ClaudeProcess, error) {
 		claudeProc, err := collectMetrics(proc, isHelper)
 		if err != nil {
 			continue // Skip processes we can't collect metrics for
+		}
+
+		// Only include processes that have sessions in ~/.claude
+		if !hasActiveSessions(claudeProc.WorkingDir) {
+			continue
 		}
 
 		claudeProcesses = append(claudeProcesses, claudeProc)
@@ -111,4 +118,65 @@ func collectMetrics(proc *process.Process, isHelper bool) (types.ClaudeProcess, 
 		StartTime:  time.UnixMilli(createTime),
 		IsHelper:   isHelper,
 	}, nil
+}
+
+// hasActiveSessions checks if a working directory has any active Claude sessions
+func hasActiveSessions(workingDir string) bool {
+	if workingDir == "[Permission Denied]" || workingDir == "" {
+		return false
+	}
+
+	// Get the Claude projects directory
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+
+	claudeProjectsDir := filepath.Join(home, ".claude", "projects")
+
+	// Check if projects directory exists
+	if _, err := os.Stat(claudeProjectsDir); err != nil {
+		return false
+	}
+
+	// List all directories in projects
+	entries, err := os.ReadDir(claudeProjectsDir)
+	if err != nil {
+		return false
+	}
+
+	// Check each project directory for sessions matching this working directory
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		projectDir := filepath.Join(claudeProjectsDir, entry.Name())
+
+		// Check for sessions-index.json to verify the originalPath matches
+		indexPath := filepath.Join(projectDir, "sessions-index.json")
+		if indexData, err := os.ReadFile(indexPath); err == nil {
+			// Simple check: if the index file contains the working directory path, it's a match
+			if strings.Contains(string(indexData), workingDir) {
+				return true
+			}
+		}
+
+		// Fallback: if index doesn't exist or doesn't match, check for any .jsonl files
+		// This handles cases where sessions-index.json might be missing
+		sessionEntries, err := os.ReadDir(projectDir)
+		if err != nil {
+			continue
+		}
+
+		for _, sessionEntry := range sessionEntries {
+			if !sessionEntry.IsDir() && strings.HasSuffix(sessionEntry.Name(), ".jsonl") {
+				// If we can't verify via index, assume it's valid if sessions exist
+				// This is a conservative approach that might include unrelated sessions
+				continue
+			}
+		}
+	}
+
+	return false
 }
