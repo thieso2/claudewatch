@@ -278,7 +278,9 @@ func (m Model) getProjectDirs() ([]ProjectDir, error) {
 		}
 
 		// Try to get the original path from sessions-index.json
-		displayName := entry.Name()
+		// If not found, decode the directory name (which uses dashes for slashes)
+		displayName := decodeProjectName(entry.Name(), home)
+
 		indexPath := filepath.Join(dirPath, "sessions-index.json")
 		if indexData, err := os.ReadFile(indexPath); err == nil {
 			// Extract originalPath from JSON
@@ -342,6 +344,44 @@ func extractOriginalPath(jsonStr string) string {
 func formatProjectPath(path string, home string) string {
 	// Replace /Users/username with ~/
 	path = strings.ReplaceAll(path, home, "~")
-	// Replace encoded dashes with slashes (if needed for any path separators)
 	return path
+}
+
+// decodeProjectName converts an encoded project directory name to a readable path
+// The encoding uses dashes for path separators
+func decodeProjectName(encodedName string, home string) string {
+	// If it doesn't contain dashes and slashes, it's likely already decoded or invalid
+	if !strings.Contains(encodedName, "-") {
+		return encodedName
+	}
+
+	// The encoded format is typically something like: -Users-thies-Projects-SaaS-Bonn-cloud
+	// We need to figure out the actual path. The pattern is that User's home directory is encoded as -Users-username-
+	// So we replace the leading -Users-username- with ~
+
+	// Extract username from home path (e.g., /Users/thies -> thies)
+	homeParts := strings.Split(home, string(filepath.Separator))
+	var username string
+	if len(homeParts) > 0 {
+		username = homeParts[len(homeParts)-1]
+	}
+
+	// Check if encoded name starts with the encoded home directory
+	encodedHome := "-Users-" + username + "-"
+	if strings.HasPrefix(encodedName, encodedHome) {
+		// Replace the encoded home with ~/
+		decoded := strings.TrimPrefix(encodedName, encodedHome)
+		decoded = "~/" + decoded
+		// Replace remaining dashes with slashes for the rest of the path
+		decoded = strings.ReplaceAll(decoded, "-", "/")
+		return decoded
+	}
+
+	// Fallback: just replace all dashes with slashes
+	decoded := strings.ReplaceAll(encodedName, "-", "/")
+	// If it doesn't start with /, add ~/
+	if !strings.HasPrefix(decoded, "/") && !strings.HasPrefix(decoded, "~") {
+		decoded = "~/" + decoded
+	}
+	return decoded
 }

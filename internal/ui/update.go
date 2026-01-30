@@ -178,13 +178,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.termHeight = msg.Height
 		// Recreate tables with new responsive widths
 		// Process table: header (1) + blank (1) + blank (1) + footer (1) = 4 lines
-		m.table = createTableWithWidth(msg.Width).WithPageSize(msg.Height - 5)
-		// Projects table: header (2 lines: title + count) + blank (1) + blank (1) + footer (1) = 5 lines
-		m.projectsTable = createProjectsTableWithWidth(msg.Width).WithPageSize(msg.Height - 6)
-		// Session table: header info (varies, ~2) + blank (1) + blank (1) + footer (1) = ~5 lines
-		m.sessionTable = createSessionTableWithWidth(msg.Width).WithPageSize(msg.Height - 6)
+		m.table = createTableWithWidth(msg.Width).WithPageSize(msg.Height - 6)
+		// Projects table: header (2-3 lines: title + count + buffer) + blank (1) + blank (1) + footer (1) = 6-7 lines
+		m.projectsTable = createProjectsTableWithWidth(msg.Width).WithPageSize(msg.Height - 8)
+		// Session table: header info (varies, ~2-3) + blank (1) + blank (1) + footer (1) = ~6-7 lines
+		m.sessionTable = createSessionTableWithWidth(msg.Width).WithPageSize(msg.Height - 8)
 		// Message table: header (1) + time (1) + tool info (1) + blank (1) + blank (1) + scroll (1) + footer (1) = 7
-		m.messageTable = createMessageTableWithWidth(msg.Width).WithPageSize(msg.Height - 8)
+		m.messageTable = createMessageTableWithWidth(msg.Width).WithPageSize(msg.Height - 9)
 		// Rebuild tables with current data
 		m.updateTable()
 		m.updateProjectsTable()
