@@ -51,6 +51,9 @@ type Message struct {
 	Role      string
 	Content   string
 	Timestamp time.Time
+	Type      string // "prompt", "assistant_response", or "tool_result"
+	ToolName  string // Name of tool that was called
+	ToolInput string // Input passed to tool
 }
 
 // SessionStats contains aggregated session statistics

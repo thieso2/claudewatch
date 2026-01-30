@@ -277,10 +277,19 @@ func (m Model) renderMessageDetailView() string {
 
 	// Header with message info
 	roleStr := "Message"
-	if m.detailMessage.Role == "user" {
-		roleStr = "Your Message"
-	} else if m.detailMessage.Role == "assistant" {
+	switch m.detailMessage.Type {
+	case "prompt":
+		roleStr = "Your Prompt"
+	case "assistant_response":
 		roleStr = "Claude Response"
+	case "tool_result":
+		roleStr = fmt.Sprintf("Tool Result: %s", m.detailMessage.ToolName)
+	default:
+		if m.detailMessage.Role == "user" {
+			roleStr = "Your Message"
+		} else if m.detailMessage.Role == "assistant" {
+			roleStr = "Claude Response"
+		}
 	}
 
 	headerTitle := lipgloss.NewStyle().

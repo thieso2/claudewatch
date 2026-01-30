@@ -308,8 +308,18 @@ func (m *Model) updateMessageTable() {
 	// Filter messages based on current filter
 	var filteredMessages []monitor.Message
 	for _, msg := range stats.MessageHistory {
-		// For now, show all messages (filtering disabled temporarily)
-		filteredMessages = append(filteredMessages, msg)
+		switch m.messageFilter {
+		case FilterUserOnly:
+			if msg.Type == "prompt" {
+				filteredMessages = append(filteredMessages, msg)
+			}
+		case FilterAssistantOnly:
+			if msg.Type == "assistant_response" || msg.Type == "tool_result" {
+				filteredMessages = append(filteredMessages, msg)
+			}
+		default:
+			filteredMessages = append(filteredMessages, msg)
+		}
 	}
 
 	// Update the filtered message count
@@ -321,17 +331,42 @@ func (m *Model) updateMessageTable() {
 	for i, msg := range filteredMessages {
 		// Replace all newlines with spaces first
 		content := strings.ReplaceAll(msg.Content, "\n", " ")
+
+		// For tool results, prepend tool name if available
+		if msg.Type == "tool_result" && msg.ToolName != "" {
+			toolInfo := fmt.Sprintf("[%s", msg.ToolName)
+			if msg.ToolInput != "" {
+				toolInput := strings.ReplaceAll(msg.ToolInput, "\n", " ")
+				if len(toolInput) > 40 {
+					toolInput = toolInput[:37] + "..."
+				}
+				toolInfo += fmt.Sprintf(" %s", toolInput)
+			}
+			toolInfo += "] "
+			content = toolInfo + content
+		}
+
 		// Truncate content for display
 		if len(content) > 76 {
 			content = content[:73] + "..."
 		}
 
 		// Create a marker for the message type
-		roleStr := msg.Role
-		if msg.Role == "user" {
+		roleStr := ""
+		switch msg.Type {
+		case "prompt":
 			roleStr = "👤 user"
-		} else if msg.Role == "assistant" {
+		case "assistant_response":
 			roleStr = "🤖 assistant"
+		case "tool_result":
+			roleStr = "📋 tool"
+		default:
+			// Fallback to role-based display
+			if msg.Role == "user" {
+				roleStr = "👤 user"
+			} else if msg.Role == "assistant" {
+				roleStr = "🤖 assistant"
+			}
 		}
 
 		rows[i] = table.NewRow(table.RowData{
@@ -350,8 +385,18 @@ func (m *Model) updateMessageTable() {
 func (m *Model) getFilteredMessages(stats *monitor.SessionStats) []monitor.Message {
 	var filteredMessages []monitor.Message
 	for _, msg := range stats.MessageHistory {
-		// For now, show all messages (filtering disabled temporarily)
-		filteredMessages = append(filteredMessages, msg)
+		switch m.messageFilter {
+		case FilterUserOnly:
+			if msg.Type == "prompt" {
+				filteredMessages = append(filteredMessages, msg)
+			}
+		case FilterAssistantOnly:
+			if msg.Type == "assistant_response" || msg.Type == "tool_result" {
+				filteredMessages = append(filteredMessages, msg)
+			}
+		default:
+			filteredMessages = append(filteredMessages, msg)
+		}
 	}
 	return filteredMessages
 }
