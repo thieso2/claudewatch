@@ -382,6 +382,9 @@ func (m *Model) updateTable() {
 
 // updateSessionTable rebuilds the session table with current session data
 func (m *Model) updateSessionTable() {
+	// Recreate session table with dynamic widths based on current data
+	m.sessionTable = CreateSessionTableWithDynamicWidths(m.termWidth, m.sessions)
+
 	rows := make([]table.Row, len(m.sessions))
 
 	for i, session := range m.sessions {

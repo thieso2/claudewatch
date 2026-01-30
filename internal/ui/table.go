@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/evertras/bubble-table/table"
 )
@@ -219,6 +220,163 @@ func createProjectsTableWithWidth(width int) table.Model {
 		table.NewColumn("name", "PROJECT", nameWidth),
 		table.NewColumn("modified", "MODIFIED", modifiedWidth),
 		table.NewColumn("sessions", "SESSIONS", sessionsWidth),
+	}
+
+	t := table.New(columns).
+		WithPageSize(20).
+		WithBaseStyle(
+			lipgloss.NewStyle().
+				Foreground(lipgloss.Color("255")),
+		).
+		Focused(true)
+
+	return t
+}
+
+// ColumnWidths holds calculated widths for session table columns
+type ColumnWidths struct {
+	Version       int
+	GitBranch     int
+	Tokens        int
+	Started       int
+	Duration      int
+	UserPrompts   int
+	Interruptions int
+	Title         int
+}
+
+// CalculateSessionTableWidths calculates optimal column widths based on session data
+func CalculateSessionTableWidths(width int, sessions []SessionInfo) ColumnWidths {
+	availableWidth := width - 6 // Reserve for borders and spacing
+
+	// Calculate maximum width needed for each column based on actual data
+	maxVersionWidth := len("v2.1.27")        // e.g., "v2.1.27"
+	maxGitWidth := len("main")               // default minimum
+	maxTokensWidth := len("9999999/9999999") // very large tokens
+	maxStartedWidth := len("2026-01-30 14:23")
+	maxDurationWidth := len("999h59m")
+	maxUserWidth := len("1023+")
+	maxIntWidth := len("999")
+
+	// Scan sessions for actual data widths
+	for _, session := range sessions {
+		// Check version width
+		if session.Version != "" {
+			vstr := "v" + session.Version
+			if len(vstr) > maxVersionWidth {
+				maxVersionWidth = len(vstr)
+			}
+		}
+
+		// Check git branch width
+		gitStr := session.GitBranch
+		if gitStr == "" {
+			gitStr = "-"
+		}
+		if len(gitStr) > maxGitWidth {
+			maxGitWidth = len(gitStr)
+		}
+
+		// Check tokens width
+		if session.TotalTokens > 0 {
+			tokensStr := fmt.Sprintf("%d/%d", session.InputTokens, session.OutputTokens)
+			if len(tokensStr) > maxTokensWidth {
+				maxTokensWidth = len(tokensStr)
+			}
+		}
+
+		// Check user prompts width
+		userStr := fmt.Sprintf("%d", session.UserPrompts)
+		if len(userStr) > maxUserWidth {
+			maxUserWidth = len(userStr)
+		}
+
+		// Check interruptions width
+		intStr := fmt.Sprintf("%d", session.Interruptions)
+		if len(intStr) > maxIntWidth {
+			maxIntWidth = len(intStr)
+		}
+	}
+
+	// Add padding (1 char on each side)
+	maxVersionWidth += 2
+	maxGitWidth += 2
+	maxTokensWidth += 2
+	maxStartedWidth += 2
+	maxDurationWidth += 2
+	maxUserWidth += 2
+	maxIntWidth += 2
+
+	// Fixed columns (headers add some width)
+	versionWidth := maxVersionWidth
+	if versionWidth < len("VER")+2 {
+		versionWidth = len("VER") + 2
+	}
+
+	gitWidth := maxGitWidth
+	if gitWidth < len("BRANCH")+2 {
+		gitWidth = len("BRANCH") + 2
+	}
+
+	tokensWidth := maxTokensWidth
+	if tokensWidth < len("TOKENS")+2 {
+		tokensWidth = len("TOKENS") + 2
+	}
+
+	startedWidth := maxStartedWidth
+	if startedWidth < len("START")+2 {
+		startedWidth = len("START") + 2
+	}
+
+	durationWidth := maxDurationWidth
+	if durationWidth < len("LEN")+2 {
+		durationWidth = len("LEN") + 2
+	}
+
+	userWidth := maxUserWidth
+	if userWidth < len("USR")+2 {
+		userWidth = len("USR") + 2
+	}
+
+	intWidth := maxIntWidth
+	if intWidth < len("INT")+2 {
+		intWidth = len("INT") + 2
+	}
+
+	// Fixed columns total
+	fixedWidth := versionWidth + gitWidth + tokensWidth + startedWidth + durationWidth + userWidth + intWidth
+
+	// Title gets remaining space, but ensure minimum
+	titleWidth := availableWidth - fixedWidth
+	if titleWidth < 20 {
+		titleWidth = 20
+	}
+
+	return ColumnWidths{
+		Version:       versionWidth,
+		GitBranch:     gitWidth,
+		Tokens:        tokensWidth,
+		Started:       startedWidth,
+		Duration:      durationWidth,
+		UserPrompts:   userWidth,
+		Interruptions: intWidth,
+		Title:         titleWidth,
+	}
+}
+
+// CreateSessionTableWithDynamicWidths creates a session table with dynamically calculated column widths
+func CreateSessionTableWithDynamicWidths(width int, sessions []SessionInfo) table.Model {
+	widths := CalculateSessionTableWidths(width, sessions)
+
+	columns := []table.Column{
+		table.NewColumn("version", "VER", widths.Version),
+		table.NewColumn("gitbranch", "BRANCH", widths.GitBranch),
+		table.NewColumn("tokens", "TOKENS", widths.Tokens),
+		table.NewColumn("started", "START", widths.Started),
+		table.NewColumn("duration", "LEN", widths.Duration),
+		table.NewColumn("userprompts", "USR", widths.UserPrompts),
+		table.NewColumn("interruptions", "INT", widths.Interruptions),
+		table.NewColumn("title", "TITLE", widths.Title),
 	}
 
 	t := table.New(columns).
