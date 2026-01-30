@@ -32,6 +32,7 @@ const (
 	ViewProcesses ViewMode = iota
 	ViewSessions
 	ViewSessionDetail
+	ViewMessageDetail
 )
 
 type MessageFilter int
@@ -72,6 +73,15 @@ type Model struct {
 	scrollOffset         int
 	messageFilter        MessageFilter // Filter for messages
 	filteredMessageCount int           // Count of currently filtered messages
+	selectedMessageIdx   int           // Index of selected message for detail view
+
+	// Terminal dimensions
+	termWidth  int
+	termHeight int
+
+	// Message detail view
+	detailMessage        *monitor.Message // Full message being displayed
+	detailScrollOffset   int              // Scroll position in message detail
 }
 
 
@@ -107,11 +117,13 @@ func NewModel(updateInterval time.Duration, showHelpers bool) Model {
 		viewMode:       ViewProcesses,
 		selectedProcIdx: 0,
 		messageFilter:  FilterAll,
+		termWidth:      80,  // Default terminal width
+		termHeight:     24,  // Default terminal height
 	}
 
-	m.table = createTable()
-	m.sessionTable = createSessionTable()
-	m.messageTable = createMessageTable()
+	m.table = createTableWithWidth(m.termWidth)
+	m.sessionTable = createSessionTableWithWidth(m.termWidth)
+	m.messageTable = createMessageTableWithWidth(m.termWidth)
 	return m
 }
 

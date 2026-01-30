@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/thies/claudewatch/internal/monitor"
@@ -11,6 +12,10 @@ import (
 func (m Model) View() string {
 	if m.quitting {
 		return "Goodbye!\n"
+	}
+
+	if m.viewMode == ViewMessageDetail {
+		return m.renderMessageDetailView()
 	}
 
 	if m.viewMode == ViewSessionDetail {
@@ -262,4 +267,103 @@ func footerHint() string {
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8"))
 	return footerStyle.Render("Press 'esc' to go back")
+}
+
+// renderMessageDetailView displays a message with full text and line wrapping
+func (m Model) renderMessageDetailView() string {
+	if m.detailMessage == nil {
+		return "Error: No message to display\n"
+	}
+
+	// Header with message info
+	roleStr := "Message"
+	if m.detailMessage.Role == "user" {
+		roleStr = "Your Message"
+	} else if m.detailMessage.Role == "assistant" {
+		roleStr = "Claude Response"
+	}
+
+	headerTitle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("11")).
+		Render(roleStr)
+
+	timeStr := m.detailMessage.Timestamp.Format("2006-01-02 15:04:05")
+	timeStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	timeText := timeStyle.Render(fmt.Sprintf("Time: %s", timeStr))
+
+	// Content with wrapping
+	content := m.detailMessage.Content
+	lines := strings.Split(content, "\n")
+
+	// Calculate visible lines based on terminal height
+	pageHeight := m.termHeight - 6 // Leave space for header and footer
+	if pageHeight < 5 {
+		pageHeight = 5 // Minimum
+	}
+
+	// Get the visible portion of lines
+	visibleLines := lines
+	if m.detailScrollOffset+pageHeight < len(lines) {
+		visibleLines = lines[m.detailScrollOffset : m.detailScrollOffset+pageHeight]
+	} else if m.detailScrollOffset < len(lines) {
+		visibleLines = lines[m.detailScrollOffset:]
+	} else {
+		visibleLines = []string{}
+	}
+
+	// Display content with word wrapping for long lines
+	var displayContent strings.Builder
+	maxWidth := m.termWidth - 4 // Leave some margin
+	if maxWidth < 40 {
+		maxWidth = 40
+	}
+
+	contentStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("255"))
+
+	for _, line := range visibleLines {
+		// Wrap long lines
+		if len(line) > maxWidth {
+			for len(line) > 0 {
+				if len(line) <= maxWidth {
+					displayContent.WriteString(line)
+					break
+				}
+				displayContent.WriteString(line[:maxWidth])
+				displayContent.WriteString("\n")
+				line = line[maxWidth:]
+			}
+		} else {
+			displayContent.WriteString(line)
+		}
+		displayContent.WriteString("\n")
+	}
+
+	contentText := contentStyle.Render(displayContent.String())
+
+	// Scroll position indicator
+	totalLines := len(lines)
+	scrollInfo := fmt.Sprintf("Line %d-%d of %d", m.detailScrollOffset+1, m.detailScrollOffset+len(visibleLines), totalLines)
+	scrollStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	scrollText := scrollStyle.Render(scrollInfo)
+
+	// Footer with help
+	footerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	helpText := "↑/↓: Scroll  |  PgUp/PgDn: Page  |  Home/End: Jump  |  esc: Back  |  q: Quit"
+	footer := footerStyle.Render(helpText)
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		headerTitle,
+		timeText,
+		"",
+		contentText,
+		"",
+		scrollText,
+		footer,
+	)
 }

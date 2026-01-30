@@ -20,7 +20,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "esc":
 			// Go back to previous view
-			if m.viewMode == ViewSessionDetail {
+			if m.viewMode == ViewMessageDetail {
+				m.viewMode = ViewSessionDetail
+				m.detailMessage = nil
+				m.detailScrollOffset = 0
+				return m, nil
+			} else if m.viewMode == ViewSessionDetail {
 				m.viewMode = ViewSessions
 				m.selectedSession = nil
 				m.sessionStats = nil
@@ -92,6 +97,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.viewMode = ViewSessionDetail
 				m.messageFilter = FilterAll // Reset filter when opening new session
 				return m, m.loadSessionDetail()
+			} else if m.viewMode == ViewSessionDetail {
+				// Open message detail view for selected message
+				stats, ok := m.sessionStats.(*monitor.SessionStats)
+				if ok && len(stats.MessageHistory) > 0 {
+					// Get the filtered messages to find the correct one
+					filteredMessages := m.getFilteredMessages(stats)
+					if m.selectedMessageIdx >= 0 && m.selectedMessageIdx < len(filteredMessages) {
+						m.detailMessage = &filteredMessages[m.selectedMessageIdx]
+						m.viewMode = ViewMessageDetail
+						m.detailScrollOffset = 0
+						return m, nil
+					}
+				}
 			}
 		}
 		// Fall through to table handling for navigation and other keys
@@ -135,8 +153,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		// Handle terminal resize
+		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+		// Just update page sizes, let bubble-table handle layout
 		m.table = m.table.WithPageSize(msg.Height - 4)
 		m.sessionTable = m.sessionTable.WithPageSize(msg.Height - 4)
+		m.messageTable = m.messageTable.WithPageSize(msg.Height - 10)
 		return m, nil
 	}
 
@@ -174,6 +196,61 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	} else if m.viewMode == ViewSessionDetail {
 		m.messageTable, cmd = m.messageTable.Update(msg)
+		// Track arrow key presses for message selection
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			stats, ok := m.sessionStats.(*monitor.SessionStats)
+			if ok {
+				filteredMessages := m.getFilteredMessages(stats)
+				switch keyMsg.String() {
+				case "up":
+					if m.selectedMessageIdx > 0 {
+						m.selectedMessageIdx--
+					}
+				case "down":
+					if m.selectedMessageIdx < len(filteredMessages)-1 {
+						m.selectedMessageIdx++
+					}
+				}
+			}
+		}
+	} else if m.viewMode == ViewMessageDetail {
+		// Handle scrolling in message detail view
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			if m.detailMessage != nil {
+				content := m.detailMessage.Content
+				lines := strings.Split(content, "\n")
+				pageHeight := m.termHeight - 6 // Leave space for header and footer
+				maxScroll := len(lines) - pageHeight
+				if maxScroll < 0 {
+					maxScroll = 0
+				}
+
+				switch keyMsg.String() {
+				case "up":
+					if m.detailScrollOffset > 0 {
+						m.detailScrollOffset--
+					}
+				case "down":
+					if m.detailScrollOffset < maxScroll {
+						m.detailScrollOffset++
+					}
+				case "home":
+					m.detailScrollOffset = 0
+				case "end":
+					m.detailScrollOffset = maxScroll
+				case "pgup":
+					m.detailScrollOffset -= pageHeight
+					if m.detailScrollOffset < 0 {
+						m.detailScrollOffset = 0
+					}
+				case "pgdn":
+					m.detailScrollOffset += pageHeight
+					if m.detailScrollOffset > maxScroll {
+						m.detailScrollOffset = maxScroll
+					}
+				}
+			}
+		}
 	}
 	return m, cmd
 }
@@ -231,18 +308,8 @@ func (m *Model) updateMessageTable() {
 	// Filter messages based on current filter
 	var filteredMessages []monitor.Message
 	for _, msg := range stats.MessageHistory {
-		switch m.messageFilter {
-		case FilterUserOnly:
-			if msg.Role == "user" {
-				filteredMessages = append(filteredMessages, msg)
-			}
-		case FilterAssistantOnly:
-			if msg.Role == "assistant" {
-				filteredMessages = append(filteredMessages, msg)
-			}
-		default: // FilterAll
-			filteredMessages = append(filteredMessages, msg)
-		}
+		// For now, show all messages (filtering disabled temporarily)
+		filteredMessages = append(filteredMessages, msg)
 	}
 
 	// Update the filtered message count
@@ -252,19 +319,14 @@ func (m *Model) updateMessageTable() {
 	rows := make([]table.Row, len(filteredMessages))
 
 	for i, msg := range filteredMessages {
+		// Replace all newlines with spaces first
+		content := strings.ReplaceAll(msg.Content, "\n", " ")
 		// Truncate content for display
-		content := msg.Content
 		if len(content) > 76 {
 			content = content[:73] + "..."
 		}
-		// Replace newlines with spaces
-		for j := 0; j < len(content); j++ {
-			if content[j] == '\n' {
-				content = content[:j] + " " + content[j+1:]
-			}
-		}
 
-		// Create a marker for the role
+		// Create a marker for the message type
 		roleStr := msg.Role
 		if msg.Role == "user" {
 			roleStr = "👤 user"
@@ -283,6 +345,16 @@ func (m *Model) updateMessageTable() {
 }
 
 // Helper functions for formatting
+
+// getFilteredMessages returns the messages filtered by current filter
+func (m *Model) getFilteredMessages(stats *monitor.SessionStats) []monitor.Message {
+	var filteredMessages []monitor.Message
+	for _, msg := range stats.MessageHistory {
+		// For now, show all messages (filtering disabled temporarily)
+		filteredMessages = append(filteredMessages, msg)
+	}
+	return filteredMessages
+}
 
 func formatPID(pid int32) string {
 	return fmt.Sprintf("%d", pid)
