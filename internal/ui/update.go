@@ -99,11 +99,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		case "enter":
-			// Open session view for selected process or session detail for selected session
+			// Open session view for selected process/project or session detail for selected session
 			if m.viewMode == ViewProcesses && len(m.processes) > 0 && m.selectedProcIdx >= 0 && m.selectedProcIdx < len(m.processes) {
 				m.selectedProc = &m.processes[m.selectedProcIdx]
 				m.viewMode = ViewSessions
 				return m, m.loadSessions()
+			} else if m.viewMode == ViewProjects && len(m.projects) > 0 && m.selectedProjIdx >= 0 && m.selectedProjIdx < len(m.projects) {
+				// Load sessions for selected project
+				m.viewMode = ViewSessions
+				return m, m.loadSessionsFromProject(m.projects[m.selectedProjIdx])
 			} else if m.viewMode == ViewSessions && len(m.sessions) > 0 && m.selectedSessionIdx >= 0 && m.selectedSessionIdx < len(m.sessions) {
 				m.viewMode = ViewSessionDetail
 				m.messageFilter = FilterAll // Reset filter when opening new session

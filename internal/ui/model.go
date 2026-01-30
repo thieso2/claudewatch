@@ -229,6 +229,59 @@ func (m Model) loadSessionDetail() tea.Cmd {
 	}
 }
 
+// loadSessionsFromProject loads sessions for a specific project directory
+func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
+	return func() tea.Msg {
+		entries, err := os.ReadDir(project.Path)
+		if err != nil {
+			return sessionsMsg{
+				err: fmt.Errorf("cannot read project directory: %w", err),
+			}
+		}
+
+		var sessions []SessionInfo
+
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") {
+				continue
+			}
+
+			// Get file info for modification time
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+
+			sessionPath := filepath.Join(project.Path, entry.Name())
+			// Use filename without extension as ID
+			sessionID := strings.TrimSuffix(entry.Name(), ".jsonl")
+
+			sessions = append(sessions, SessionInfo{
+				ID:      sessionID,
+				Title:   sessionID, // Use ID as title for project sessions
+				Updated: info.ModTime().Format("2006-01-02 15:04"),
+				Path:    sessionPath,
+			})
+		}
+
+		// Sort sessions by modification time (newest first)
+		for i := 0; i < len(sessions); i++ {
+			for j := i + 1; j < len(sessions); j++ {
+				// Parse times for sorting
+				t1, _ := time.Parse("2006-01-02 15:04", sessions[i].Updated)
+				t2, _ := time.Parse("2006-01-02 15:04", sessions[j].Updated)
+				if t2.After(t1) {
+					sessions[i], sessions[j] = sessions[j], sessions[i]
+				}
+			}
+		}
+
+		return sessionsMsg{
+			sessions: sessions,
+		}
+	}
+}
+
 // loadProjects kicks off an asynchronous project directory loading
 func (m Model) loadProjects() tea.Cmd {
 	return func() tea.Msg {
