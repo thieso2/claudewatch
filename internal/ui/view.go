@@ -753,7 +753,7 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 	}
 
 	// Build header with left-aligned icon
-	// Format: [emoji] role · time · model
+	// Format: [emoji] role · time · model · id
 	headerParts := []string{roleEmoji, roleLabel}
 
 	if headerTime != "" {
@@ -766,6 +766,15 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 		if len(modelParts) > 0 {
 			headerParts = append(headerParts, "·", modelParts[0])
 		}
+	}
+
+	// Add short message ID
+	if msg.UUID != "" {
+		shortID := msg.UUID
+		if len(shortID) > 8 {
+			shortID = shortID[:8]
+		}
+		headerParts = append(headerParts, "·", shortID)
 	}
 
 	headerText := strings.Join(headerParts, " ")

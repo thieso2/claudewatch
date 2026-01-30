@@ -594,6 +594,7 @@ func (m *Model) updateMessageTable() {
 			InputOutputRatio: ratio,
 			OutputPercentage: outputPercent,
 			CacheSavings:     savings,
+			UUID:             msg.UUID,
 		}
 	}
 

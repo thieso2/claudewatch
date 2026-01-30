@@ -49,6 +49,7 @@ type MessageRow struct {
 	InputOutputRatio   float64   // Input tokens / Output tokens
 	OutputPercentage   int       // Output tokens as % of total (0-100)
 	CacheSavings       float64   // Estimated savings from cache hits (USD)
+	UUID               string    // Unique message identifier
 }
 
 // ViewMode represents the current view being displayed
