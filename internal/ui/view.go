@@ -640,30 +640,23 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 		headerLine = headerStyle.Render(headerText)
 	}
 
-	// Message content - show first 2-3 lines for preview
+	// Message content - compact display with consistent line count
 	contentStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("255"))
 
-	// Split content into lines and show first 3
-	contentLines := strings.Split(msg.Content, "\n")
-	var displayLines []string
-	maxLines := 3
-	for i := 0; i < maxLines && i < len(contentLines); i++ {
-		line := contentLines[i]
-		// Truncate very long lines
-		if len(line) > 150 {
-			line = line[:147] + "..."
-		}
-		displayLines = append(displayLines, line)
+	// Replace newlines with spaces for compact display
+	// This makes all messages display on one line with consistent height
+	contentCompact := strings.ReplaceAll(msg.Content, "\n", " ")
+
+	// Collapse multiple spaces into single space
+	contentCompact = strings.Join(strings.Fields(contentCompact), " ")
+
+	// Truncate to fit on one line (150 chars = roughly one terminal line)
+	if len(contentCompact) > 150 {
+		contentCompact = contentCompact[:147] + "…"
 	}
 
-	// Add indicator if there's more content
-	contentDisplay := strings.Join(displayLines, "\n")
-	if len(contentLines) > maxLines {
-		contentDisplay += "\n  ┇ (" + fmt.Sprintf("%d more lines", len(contentLines)-maxLines) + ")"
-	}
-
-	contentLine := contentStyle.Render(contentDisplay)
+	contentLine := contentStyle.Render(contentCompact)
 
 	// Token and cost information
 	var metricLines []string
