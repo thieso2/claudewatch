@@ -582,10 +582,10 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 		costColor = "10" // Green for cheap
 	}
 
-	// Cursor indicator
-	cursor := "  "
+	// Cursor indicator - much more prominent when selected
+	cursor := "   "
 	if isSelected {
-		cursor = "▶ "
+		cursor = "► "
 	}
 
 	// Role and metadata
@@ -621,16 +621,24 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 		headerParts = append(headerParts, fmt.Sprintf("[%s]", msg.Model))
 	}
 
-	// Header styling
-	headerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("11"))
-	if isSelected {
-		headerStyle = headerStyle.
-			Bold(true).
-			Underline(true)
-	}
+	// Header styling - much more visible when selected
+	headerText := strings.Join(headerParts, " ")
 
-	headerLine := headerStyle.Render(strings.Join(headerParts, " "))
+	var headerLine string
+	if isSelected {
+		// Bright, highlighted header for selected message
+		headerStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("226")). // Bright yellow
+			Background(lipgloss.Color("57")).  // Dark blue background
+			Bold(true).
+			Padding(0, 1)
+		headerLine = headerStyle.Render(headerText)
+	} else {
+		// Subtle header for non-selected
+		headerStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("11"))
+		headerLine = headerStyle.Render(headerText)
+	}
 
 	// Message content - show first 2-3 lines for preview
 	contentStyle := lipgloss.NewStyle().
@@ -736,7 +744,19 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 
 	// Build the message with proper spacing
 	var parts []string
-	parts = append(parts, headerLine)
+
+	// Add left bar indicator for selected message
+	if isSelected {
+		// Add left border bar with the header
+		leftBar := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("226")).
+			Render("║")
+		headerWithBar := lipgloss.JoinHorizontal(lipgloss.Top, leftBar, " ", headerLine)
+		parts = append(parts, headerWithBar)
+	} else {
+		parts = append(parts, headerLine)
+	}
+
 	parts = append(parts, contentLine)
 
 	if len(metricLines) > 0 {
@@ -744,13 +764,17 @@ func renderMessageCard(msg MessageRow, isSelected bool) string {
 		parts = append(parts, metricLines...)
 	}
 
-	// Add separator line if selected
+	// Add visual separator
 	if isSelected {
+		// Bright separator for selected
+		parts = append(parts, lipgloss.NewStyle().
+			Foreground(lipgloss.Color("11")).
+			Render(strings.Repeat("━", 100)))
+	} else {
+		// Subtle separator for non-selected
 		parts = append(parts, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("8")).
 			Render(strings.Repeat("─", 100)))
-	} else {
-		parts = append(parts, "")
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, parts...)
