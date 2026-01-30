@@ -42,10 +42,11 @@ const (
 
 // ProjectDir represents a project directory with metadata
 type ProjectDir struct {
-	Name     string
-	Path     string
-	Modified time.Time
-	Sessions int // Count of session files
+	Name          string
+	Path          string
+	DisplayName   string // Human-readable project name
+	Modified      time.Time
+	Sessions      int // Count of session files
 }
 
 type MessageFilter int
@@ -276,11 +277,22 @@ func (m Model) getProjectDirs() ([]ProjectDir, error) {
 			}
 		}
 
+		// Try to get the original path from sessions-index.json
+		displayName := entry.Name()
+		indexPath := filepath.Join(dirPath, "sessions-index.json")
+		if indexData, err := os.ReadFile(indexPath); err == nil {
+			// Extract originalPath from JSON
+			if origPath := extractOriginalPath(string(indexData)); origPath != "" {
+				displayName = formatProjectPath(origPath, home)
+			}
+		}
+
 		projects = append(projects, ProjectDir{
-			Name:     entry.Name(),
-			Path:     dirPath,
-			Modified: info.ModTime(),
-			Sessions: sessionCount,
+			Name:        entry.Name(),
+			Path:        dirPath,
+			DisplayName: displayName,
+			Modified:    info.ModTime(),
+			Sessions:    sessionCount,
 		})
 	}
 
@@ -294,4 +306,42 @@ func (m Model) getProjectDirs() ([]ProjectDir, error) {
 	}
 
 	return projects, nil
+}
+
+// extractOriginalPath extracts the originalPath value from a JSON string
+func extractOriginalPath(jsonStr string) string {
+	// Look for "originalPath": "..."
+	// Simple string search approach
+	idx := strings.Index(jsonStr, `"originalPath"`)
+	if idx < 0 {
+		return ""
+	}
+
+	// Find the opening quote after the colon
+	colonIdx := strings.Index(jsonStr[idx:], ":")
+	if colonIdx < 0 {
+		return ""
+	}
+
+	quoteIdx := strings.Index(jsonStr[idx+colonIdx:], `"`)
+	if quoteIdx < 0 {
+		return ""
+	}
+
+	// Find the closing quote
+	startIdx := idx + colonIdx + quoteIdx + 1
+	endIdx := strings.Index(jsonStr[startIdx:], `"`)
+	if endIdx < 0 {
+		return ""
+	}
+
+	return jsonStr[startIdx : startIdx+endIdx]
+}
+
+// formatProjectPath converts an absolute path to a user-friendly display format
+func formatProjectPath(path string, home string) string {
+	// Replace /Users/username with ~/
+	path = strings.ReplaceAll(path, home, "~")
+	// Replace encoded dashes with slashes (if needed for any path separators)
+	return path
 }

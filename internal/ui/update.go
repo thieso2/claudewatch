@@ -177,11 +177,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.termWidth = msg.Width
 		m.termHeight = msg.Height
 		// Recreate tables with new responsive widths
-		// Account for: header (1) + blank (1) + blank (1) + footer (1) = 4 lines overhead
+		// Process table: header (1) + blank (1) + blank (1) + footer (1) = 4 lines
 		m.table = createTableWithWidth(msg.Width).WithPageSize(msg.Height - 5)
-		m.projectsTable = createProjectsTableWithWidth(msg.Width).WithPageSize(msg.Height - 5)
-		m.sessionTable = createSessionTableWithWidth(msg.Width).WithPageSize(msg.Height - 5)
-		// Message table has more overhead: header (1) + time (1) + tool info (1) + blank (1) + blank (1) + scroll (1) + footer (1) = 7
+		// Projects table: header (2 lines: title + count) + blank (1) + blank (1) + footer (1) = 5 lines
+		m.projectsTable = createProjectsTableWithWidth(msg.Width).WithPageSize(msg.Height - 6)
+		// Session table: header info (varies, ~2) + blank (1) + blank (1) + footer (1) = ~5 lines
+		m.sessionTable = createSessionTableWithWidth(msg.Width).WithPageSize(msg.Height - 6)
+		// Message table: header (1) + time (1) + tool info (1) + blank (1) + blank (1) + scroll (1) + footer (1) = 7
 		m.messageTable = createMessageTableWithWidth(msg.Width).WithPageSize(msg.Height - 8)
 		// Rebuild tables with current data
 		m.updateTable()
@@ -371,8 +373,14 @@ func (m *Model) updateProjectsTable() {
 		modifiedStr := proj.Modified.Format("2006-01-02 15:04")
 		sessionsStr := fmt.Sprintf("%d", proj.Sessions)
 
+		// Use DisplayName if available, otherwise use Name
+		displayName := proj.DisplayName
+		if displayName == "" {
+			displayName = proj.Name
+		}
+
 		rows[i] = table.NewRow(table.RowData{
-			"name":      truncatePath(proj.Name, 40),
+			"name":      truncatePath(displayName, 50),
 			"modified":  modifiedStr,
 			"sessions":  sessionsStr,
 		})
