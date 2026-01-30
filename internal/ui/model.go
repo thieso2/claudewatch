@@ -23,6 +23,13 @@ type SessionInfo struct {
 	Duration      string    // Total session duration
 	UserPrompts   int       // Number of user prompts
 	Interruptions int       // Number of resumptions/interruptions
+	GitBranch     string    // Git branch when session was created
+	IsSidechain   bool      // Whether this is a side/branching conversation
+	Version       string    // Claude version (e.g., "2.1.1")
+	FirstPrompt   string    // The initial prompt that started the session
+	TotalTokens   int       // Total tokens used in session (input + output)
+	InputTokens   int       // Total input tokens
+	OutputTokens  int       // Total output tokens
 }
 
 // MessageRow represents a message for display in the message table
@@ -206,6 +213,11 @@ func (m Model) loadSessions() tea.Cmd {
 			metadata, err := monitor.GetSessionMetadata(s.FilePath)
 			var startedStr, durationStr string
 			var userPrompts, interruptions int
+			var gitBranch string
+			var isSidechain bool
+			var version string
+			var firstPrompt string
+			var totalTokens, inputTokens, outputTokens int
 
 			if err == nil {
 				startedStr = metadata.Started.Format("2006-01-02 15:04")
@@ -219,6 +231,11 @@ func (m Model) loadSessions() tea.Cmd {
 				}
 				userPrompts = metadata.UserPrompts
 				interruptions = metadata.Interruptions
+				version = metadata.Version
+				firstPrompt = metadata.FirstPrompt
+				totalTokens = metadata.TotalInputTokens + metadata.TotalOutputTokens
+				inputTokens = metadata.TotalInputTokens
+				outputTokens = metadata.TotalOutputTokens
 			}
 
 			sessionInfos[i] = SessionInfo{
@@ -230,6 +247,13 @@ func (m Model) loadSessions() tea.Cmd {
 				Duration:      durationStr,
 				UserPrompts:   userPrompts,
 				Interruptions: interruptions,
+				GitBranch:     gitBranch,
+				IsSidechain:   isSidechain,
+				Version:       version,
+				FirstPrompt:   firstPrompt,
+				TotalTokens:   totalTokens,
+				InputTokens:   inputTokens,
+				OutputTokens:  outputTokens,
 			}
 		}
 
@@ -288,6 +312,11 @@ func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
 			metadata, err := monitor.GetSessionMetadata(sessionPath)
 			var startedStr, durationStr string
 			var userPrompts, interruptions int
+			var gitBranch string
+			var isSidechain bool
+			var version string
+			var firstPrompt string
+			var totalTokens, inputTokens, outputTokens int
 
 			if err == nil {
 				startedStr = metadata.Started.Format("2006-01-02 15:04")
@@ -301,6 +330,11 @@ func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
 				}
 				userPrompts = metadata.UserPrompts
 				interruptions = metadata.Interruptions
+				version = metadata.Version
+				firstPrompt = metadata.FirstPrompt
+				totalTokens = metadata.TotalInputTokens + metadata.TotalOutputTokens
+				inputTokens = metadata.TotalInputTokens
+				outputTokens = metadata.TotalOutputTokens
 			}
 
 			sessions = append(sessions, SessionInfo{
@@ -312,6 +346,13 @@ func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
 				Duration:      durationStr,
 				UserPrompts:   userPrompts,
 				Interruptions: interruptions,
+				GitBranch:     gitBranch,
+				IsSidechain:   isSidechain,
+				Version:       version,
+				FirstPrompt:   firstPrompt,
+				TotalTokens:   totalTokens,
+				InputTokens:   inputTokens,
+				OutputTokens:  outputTokens,
 			})
 		}
 

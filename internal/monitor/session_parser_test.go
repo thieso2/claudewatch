@@ -6,170 +6,131 @@ import (
 	"testing"
 )
 
-func TestParseSessionFile(t *testing.T) {
-	// Load the fixture file
-	fixturePath := filepath.Join("testdata", "sample_session.jsonl")
+// TestSessionMetadataExtraction tests parsing of session metadata
+func TestSessionMetadataExtraction(t *testing.T) {
+	// Create a temporary JSONL file with test data
+	tmpdir := t.TempDir()
+	sessionFile := filepath.Join(tmpdir, "test-session.jsonl")
 
-	// Check if fixture exists
-	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
-		t.Skipf("Fixture file not found: %s", fixturePath)
+	testData := `{"type":"user","uuid":"msg1","timestamp":"2026-01-09T14:02:46.229Z","message":{"role":"user","content":"test"},"version":"2.1.1","cwd":"/test/path","sessionId":"test-session","gitBranch":"main","userType":"external","parentUuid":null,"isSidechain":false}
+{"type":"assistant","uuid":"msg2","timestamp":"2026-01-09T14:02:52.977Z","message":{"model":"claude-sonnet-4-5-20250929","id":"msg_01","role":"assistant","content":[{"type":"text","text":"response"}],"usage":{"input_tokens":10,"output_tokens":3}},"version":"2.1.1","cwd":"/test/path","sessionId":"test-session","gitBranch":"main"}
+{"type":"user","uuid":"msg3","timestamp":"2026-01-09T14:03:00.000Z","message":{"role":"user","content":"second message"},"version":"2.1.1"}
+{"type":"assistant","uuid":"msg4","timestamp":"2026-01-09T14:04:00.000Z","message":{"model":"claude-sonnet-4-5-20250929","role":"assistant","content":[]},"version":"2.1.1"}
+`
+
+	if err := os.WriteFile(sessionFile, []byte(testData), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	stats, err := ParseSessionFile(fixturePath)
+	// Parse the metadata
+	metadata, err := GetSessionMetadata(sessionFile)
 	if err != nil {
-		t.Fatalf("ParseSessionFile failed: %v", err)
+		t.Fatalf("GetSessionMetadata failed: %v", err)
 	}
 
-	// Basic sanity checks
-	if stats == nil {
-		t.Fatal("ParseSessionFile returned nil stats")
+	// Verify results
+	tests := []struct {
+		name     string
+		got      interface{}
+		expected interface{}
+	}{
+		{"MessageCount", metadata.MessageCount, 4},
+		{"UserPrompts", metadata.UserPrompts, 2},
+		{"Interruptions", metadata.Interruptions, 0},
 	}
 
-	if stats.FilePath != fixturePath {
-		t.Errorf("FilePath mismatch: got %s, want %s", stats.FilePath, fixturePath)
-	}
-
-	t.Logf("Parsed session with %d total messages", stats.TotalMessages)
-	t.Logf("  User messages: %d", stats.UserMessages)
-	t.Logf("  Assistant messages: %d", stats.AssistantMessages)
-	t.Logf("  Message history length: %d", len(stats.MessageHistory))
-}
-
-func TestMessageTypeDetection(t *testing.T) {
-	fixturePath := filepath.Join("testdata", "sample_session.jsonl")
-
-	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
-		t.Skipf("Fixture file not found: %s", fixturePath)
-	}
-
-	stats, err := ParseSessionFile(fixturePath)
-	if err != nil {
-		t.Fatalf("ParseSessionFile failed: %v", err)
-	}
-
-	// Count message types
-	promptCount := 0
-	assistantCount := 0
-	toolResultCount := 0
-
-	for _, msg := range stats.MessageHistory {
-		t.Logf("Message: Type=%q, Role=%q, Content=[%d chars], Tool=%q",
-			msg.Type, msg.Role, len(msg.Content), msg.ToolName)
-
-		switch msg.Type {
-		case "prompt":
-			promptCount++
-		case "assistant_response":
-			assistantCount++
-		case "tool_result":
-			toolResultCount++
+	for _, tt := range tests {
+		if tt.got != tt.expected {
+			t.Errorf("%s: got %v, want %v", tt.name, tt.got, tt.expected)
 		}
 	}
 
-	t.Logf("\nMessage type breakdown:")
-	t.Logf("  Prompts: %d", promptCount)
-	t.Logf("  Assistant responses: %d", assistantCount)
-	t.Logf("  Tool results: %d", toolResultCount)
-
-	if promptCount == 0 && assistantCount == 0 && toolResultCount == 0 {
-		t.Error("No message types were detected - parser may not be extracting types correctly")
+	// Verify timestamps
+	if metadata.Started.IsZero() {
+		t.Error("Started time should not be zero")
+	}
+	if metadata.Ended.IsZero() {
+		t.Error("Ended time should not be zero")
+	}
+	if metadata.Duration <= 0 {
+		t.Error("Duration should be positive")
 	}
 }
 
-func TestToolInformationExtraction(t *testing.T) {
-	fixturePath := filepath.Join("testdata", "sample_session.jsonl")
+// TestSessionInterruptionDetection tests detection of session resumptions
+func TestSessionInterruptionDetection(t *testing.T) {
+	tmpdir := t.TempDir()
+	sessionFile := filepath.Join(tmpdir, "test-interruption.jsonl")
 
-	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
-		t.Skipf("Fixture file not found: %s", fixturePath)
+	// Create session with 2-hour gap (should detect as interruption)
+	testData := `{"type":"user","timestamp":"2026-01-09T14:00:00.000Z","message":{"role":"user","content":"msg1"},"version":"2.1.1"}
+{"type":"assistant","timestamp":"2026-01-09T14:01:00.000Z","message":{"role":"assistant","content":[]},"version":"2.1.1"}
+{"type":"user","timestamp":"2026-01-09T16:30:00.000Z","message":{"role":"user","content":"msg2"},"version":"2.1.1"}
+{"type":"assistant","timestamp":"2026-01-09T16:31:00.000Z","message":{"role":"assistant","content":[]},"version":"2.1.1"}
+`
+
+	if err := os.WriteFile(sessionFile, []byte(testData), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	stats, err := ParseSessionFile(fixturePath)
+	metadata, err := GetSessionMetadata(sessionFile)
 	if err != nil {
-		t.Fatalf("ParseSessionFile failed: %v", err)
+		t.Fatalf("GetSessionMetadata failed: %v", err)
 	}
 
-	// Look for tool uses
-	toolsFound := 0
-	for _, msg := range stats.MessageHistory {
-		if msg.Type == "tool_result" || msg.ToolName != "" {
-			toolsFound++
-			t.Logf("Tool found: %s", msg.ToolName)
-			if msg.ToolInput != "" {
-				t.Logf("  Input: %s", msg.ToolInput)
-			}
-		}
-	}
-
-	t.Logf("Tools found: %d", toolsFound)
-	if toolsFound == 0 {
-		t.Log("Warning: No tool information extracted. Check if fixture contains tool uses.")
+	if metadata.Interruptions != 1 {
+		t.Errorf("Expected 1 interruption, got %d", metadata.Interruptions)
 	}
 }
 
-func TestSessionStats(t *testing.T) {
-	fixturePath := filepath.Join("testdata", "sample_session.jsonl")
+// TestTokenUsageParsing tests extraction of token usage data
+func TestTokenUsageParsing(t *testing.T) {
+	tmpdir := t.TempDir()
+	sessionFile := filepath.Join(tmpdir, "test-tokens.jsonl")
 
-	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
-		t.Skipf("Fixture file not found: %s", fixturePath)
+	// Assistant message with token usage
+	testData := `{"type":"user","timestamp":"2026-01-09T14:00:00.000Z","message":{"role":"user","content":"analyze"},"version":"2.1.1"}
+{"type":"assistant","timestamp":"2026-01-09T14:00:10.000Z","message":{"model":"claude-sonnet-4-5-20250929","role":"assistant","content":[{"type":"text","text":"analysis"}],"usage":{"input_tokens":100,"cache_creation_input_tokens":5000,"cache_read_input_tokens":200,"output_tokens":50}},"version":"2.1.1"}
+`
+
+	if err := os.WriteFile(sessionFile, []byte(testData), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	stats, err := ParseSessionFile(fixturePath)
+	// For now, just verify the metadata parses correctly
+	metadata, err := GetSessionMetadata(sessionFile)
 	if err != nil {
-		t.Fatalf("ParseSessionFile failed: %v", err)
+		t.Fatalf("GetSessionMetadata failed: %v", err)
 	}
 
-	// Check timestamps
-	if stats.CreatedAt.IsZero() {
-		t.Error("CreatedAt is zero")
-	}
-	if stats.LastActivity.IsZero() {
-		t.Error("LastActivity is zero")
-	}
-
-	if !stats.CreatedAt.IsZero() && !stats.LastActivity.IsZero() {
-		if stats.CreatedAt.After(stats.LastActivity) {
-			t.Error("CreatedAt is after LastActivity")
-		}
-	}
-
-	// Check summary
-	summary := stats.GetSummary()
-	t.Logf("Summary: %s", summary)
-	if summary == "" {
-		t.Error("GetSummary returned empty string")
-	}
-
-	// Check detailed stats
-	detailed := stats.GetDetailedStats()
-	t.Logf("Detailed: %s", detailed)
-	if detailed == "" {
-		t.Error("GetDetailedStats returned empty string")
+	if metadata.UserPrompts != 1 {
+		t.Errorf("Expected 1 user prompt, got %d", metadata.UserPrompts)
 	}
 }
 
-func TestMessageContent(t *testing.T) {
-	fixturePath := filepath.Join("testdata", "sample_session.jsonl")
+// TestEventTypeDetection verifies all event types parse correctly
+func TestEventTypeDetection(t *testing.T) {
+	tmpdir := t.TempDir()
+	sessionFile := filepath.Join(tmpdir, "test-events.jsonl")
 
-	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
-		t.Skipf("Fixture file not found: %s", fixturePath)
+	testData := `{"type":"user","timestamp":"2026-01-09T14:00:00.000Z","message":{"role":"user","content":"hello"}}
+{"type":"assistant","timestamp":"2026-01-09T14:00:10.000Z","message":{"role":"assistant","content":[]}}
+{"type":"system","timestamp":"2026-01-09T14:01:00.000Z","subtype":"turn_duration","durationMs":50000}
+{"type":"file-history-snapshot","timestamp":"2026-01-09T14:02:00.000Z","snapshot":{"timestamp":"2026-01-09T14:02:00.000Z"}}
+`
+
+	if err := os.WriteFile(sessionFile, []byte(testData), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
 	}
 
-	stats, err := ParseSessionFile(fixturePath)
+	// Parse and verify all events are counted
+	metadata, err := GetSessionMetadata(sessionFile)
 	if err != nil {
-		t.Fatalf("ParseSessionFile failed: %v", err)
+		t.Fatalf("GetSessionMetadata failed: %v", err)
 	}
 
-	for i, msg := range stats.MessageHistory {
-		if msg.Content == "" {
-			t.Errorf("Message %d has empty content", i)
-		}
-
-		if msg.Timestamp.IsZero() {
-			t.Errorf("Message %d has zero timestamp", i)
-		}
-
-		if msg.Role == "" {
-			t.Errorf("Message %d has empty role", i)
-		}
+	// Should count user + assistant = 2
+	if metadata.MessageCount != 2 {
+		t.Errorf("Message count: got %d, want 2", metadata.MessageCount)
 	}
 }

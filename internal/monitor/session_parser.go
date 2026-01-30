@@ -39,6 +39,7 @@ import (
 type SessionEntry struct {
 	Type      string                 `json:"type"`
 	Timestamp string                 `json:"timestamp"`
+	Version   string                 `json:"version"`
 	Message   *struct {
 		Role    string        `json:"role"`
 		Content interface{}   `json:"content"` // Can be string or array
@@ -334,14 +335,49 @@ func (m Message) GetMessageSummary() string {
 	return fmt.Sprintf("[%s] %s", m.Role, content)
 }
 
+// TokenUsage represents token usage information from an API response
+type TokenUsage struct {
+	InputTokens                 int `json:"input_tokens"`
+	CacheCreationInputTokens    int `json:"cache_creation_input_tokens"`
+	CacheReadInputTokens        int `json:"cache_read_input_tokens"`
+	OutputTokens                int `json:"output_tokens"`
+	CacheCreationEphemeral5m    int `json:"ephemeral_5m_input_tokens,omitempty"`
+	CacheCreationEphemeral1h    int `json:"ephemeral_1h_input_tokens,omitempty"`
+}
+
 // SessionMetadata contains quick metadata about a session without full parsing
 type SessionMetadata struct {
-	Started       time.Time
-	Ended         time.Time
-	Duration      time.Duration
-	MessageCount  int
-	UserPrompts   int
-	Interruptions int
+	Started          time.Time
+	Ended            time.Time
+	Duration         time.Duration
+	MessageCount     int
+	UserPrompts      int
+	Interruptions    int
+	TotalInputTokens int
+	TotalOutputTokens int
+	Version          string // Claude version from first message
+	FirstPrompt      string // First user message
+}
+
+// SessionIndexEntry represents a single entry in sessions-index.json
+type SessionIndexEntry struct {
+	SessionId    string `json:"sessionId"`
+	FullPath     string `json:"fullPath"`
+	FileMtime    int64  `json:"fileMtime"`
+	FirstPrompt  string `json:"firstPrompt"`
+	MessageCount int    `json:"messageCount"`
+	Created      string `json:"created"`
+	Modified     string `json:"modified"`
+	GitBranch    string `json:"gitBranch"`
+	ProjectPath  string `json:"projectPath"`
+	IsSidechain  bool   `json:"isSidechain"`
+}
+
+// SessionIndex represents the structure of sessions-index.json
+type SessionIndex struct {
+	Version      int                  `json:"version"`
+	Entries      []SessionIndexEntry  `json:"entries"`
+	OriginalPath string               `json:"originalPath"`
 }
 
 // GetSessionMetadata extracts quick metadata from a session file
@@ -363,6 +399,8 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 	var userPrompts int
 	var lastMessageTime time.Time
 	var interruptions int
+	var totalInputTokens, totalOutputTokens int
+	var version, firstPrompt string
 	const interruptionGap = 1 * time.Hour // Consider >1 hour gap as interruption
 
 	for scanner.Scan() {
@@ -385,6 +423,7 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 		// Track first and last times
 		if firstTime.IsZero() {
 			firstTime = ts
+			version = entry.Version // Get version from first entry
 		}
 		lastTime = ts
 
@@ -392,9 +431,38 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 		if entry.Type == "user" || entry.Type == "assistant" {
 			messageCount++
 
-			// Count user prompts separately
+			// Count user prompts separately and capture first prompt
 			if entry.Type == "user" {
 				userPrompts++
+				if firstPrompt == "" && entry.Message != nil {
+					if content, ok := entry.Message.Content.(string); ok {
+						firstPrompt = content
+					}
+				}
+			}
+
+			// Extract token usage from assistant messages
+			if entry.Type == "assistant" && entry.Message != nil {
+				// Try to unmarshal the message to get usage data
+				msgData := entry.Message
+				if msgData.Content != nil {
+					// The usage might be in a nested structure
+					// For now, we'll need to do a deeper JSON parse
+					// This is handled by re-parsing the line with more detail
+					var detailedEntry struct {
+						Message struct {
+							Usage struct {
+								InputTokens              int `json:"input_tokens"`
+								CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+								OutputTokens             int `json:"output_tokens"`
+							} `json:"usage"`
+						} `json:"message"`
+					}
+					if err := json.Unmarshal(line, &detailedEntry); err == nil {
+						totalInputTokens += detailedEntry.Message.Usage.InputTokens + detailedEntry.Message.Usage.CacheCreationInputTokens
+						totalOutputTokens += detailedEntry.Message.Usage.OutputTokens
+					}
+				}
 			}
 
 			// Detect interruptions (gaps > 1 hour between messages)
@@ -414,11 +482,30 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 	}
 
 	return &SessionMetadata{
-		Started:       firstTime,
-		Ended:         lastTime,
-		Duration:      lastTime.Sub(firstTime),
-		MessageCount:  messageCount,
-		UserPrompts:   userPrompts,
-		Interruptions: interruptions,
+		Started:           firstTime,
+		Ended:             lastTime,
+		Duration:          lastTime.Sub(firstTime),
+		MessageCount:      messageCount,
+		UserPrompts:       userPrompts,
+		Interruptions:     interruptions,
+		TotalInputTokens:  totalInputTokens,
+		TotalOutputTokens: totalOutputTokens,
+		Version:           version,
+		FirstPrompt:       firstPrompt,
 	}, nil
+}
+
+// ParseSessionIndex reads and parses a sessions-index.json file
+func ParseSessionIndex(filePath string) (*SessionIndex, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read sessions index: %w", err)
+	}
+
+	var index SessionIndex
+	if err := json.Unmarshal(data, &index); err != nil {
+		return nil, fmt.Errorf("cannot parse sessions index: %w", err)
+	}
+
+	return &index, nil
 }
