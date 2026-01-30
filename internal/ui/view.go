@@ -518,6 +518,47 @@ func (m Model) renderMessageDetailView() string {
 	var detailsLines []string
 	var details []string
 
+	// Model and tokens (for assistant messages)
+	if msg.Role == "assistant" && (msg.InputTokens > 0 || msg.OutputTokens > 0 || msg.Model != "") {
+		var tokenInfo []string
+
+		if msg.Model != "" {
+			tokenInfo = append(tokenInfo, fmt.Sprintf("Model: %s", msg.Model))
+		}
+
+		if msg.InputTokens > 0 {
+			tokenInfo = append(tokenInfo, fmt.Sprintf("Input: %d", msg.InputTokens))
+		}
+		if msg.OutputTokens > 0 {
+			tokenInfo = append(tokenInfo, fmt.Sprintf("Output: %d", msg.OutputTokens))
+		}
+		if msg.CacheCreation > 0 {
+			tokenInfo = append(tokenInfo, fmt.Sprintf("Cache-Write: %d", msg.CacheCreation))
+		}
+		if msg.CacheRead > 0 {
+			tokenInfo = append(tokenInfo, fmt.Sprintf("Cache-Hit: %d", msg.CacheRead))
+		}
+
+		// Calculate cost
+		inputCost := float64(msg.InputTokens+msg.CacheCreation) * 0.000003
+		cacheReadCost := float64(msg.CacheRead) * 0.0000003
+		outputCost := float64(msg.OutputTokens) * 0.000015
+		totalCost := inputCost + cacheReadCost + outputCost
+
+		if totalCost > 0 {
+			costColor := "10" // Green
+			if totalCost > 0.10 {
+				costColor = "1" // Red
+			} else if totalCost > 0.01 {
+				costColor = "3" // Yellow
+			}
+			costStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(costColor))
+			tokenInfo = append(tokenInfo, costStyle.Render(fmt.Sprintf("Cost: $%.6f", totalCost)))
+		}
+
+		details = append(details, strings.Join(tokenInfo, " • "))
+	}
+
 	// Session and context info
 	if msg.SessionID != "" {
 		details = append(details, fmt.Sprintf("Session: %s", msg.SessionID))
@@ -552,8 +593,15 @@ func (m Model) renderMessageDetailView() string {
 	if len(details) > 0 {
 		detailsStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("242"))
-		for _, detail := range details {
-			detailsLines = append(detailsLines, detailsStyle.Render(detail))
+		for i, detail := range details {
+			// First line (tokens/model) with different style
+			if i == 0 && msg.Role == "assistant" && (msg.InputTokens > 0 || msg.OutputTokens > 0 || msg.Model != "") {
+				tokenStyle := lipgloss.NewStyle().
+					Foreground(lipgloss.Color("6"))
+				detailsLines = append(detailsLines, tokenStyle.Render(detail))
+			} else {
+				detailsLines = append(detailsLines, detailsStyle.Render(detail))
+			}
 		}
 	}
 
