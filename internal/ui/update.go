@@ -385,12 +385,43 @@ func (m *Model) updateSessionTable() {
 	rows := make([]table.Row, len(m.sessions))
 
 	for i, session := range m.sessions {
+		// Format version (show v2.1.1 style)
+		versionStr := ""
+		if session.Version != "" {
+			versionStr = "v" + session.Version
+		}
+
+		// Format git branch (show as "main" or "-" if empty)
+		gitStr := session.GitBranch
+		if gitStr == "" {
+			gitStr = "-"
+		}
+
+		// Format tokens (show as "input/output" or "-" if none)
+		tokensStr := "-"
+		if session.TotalTokens > 0 {
+			if session.InputTokens > 0 || session.OutputTokens > 0 {
+				tokensStr = fmt.Sprintf("%d/%d", session.InputTokens, session.OutputTokens)
+			} else {
+				tokensStr = fmt.Sprintf("%d", session.TotalTokens)
+			}
+		}
+
+		// Mark sidechain with indicator
+		titleStr := truncatePath(session.Title, 36)
+		if session.IsSidechain {
+			titleStr = "🔀 " + titleStr
+		}
+
 		rows[i] = table.NewRow(table.RowData{
+			"version":       versionStr,
+			"gitbranch":     gitStr,
+			"tokens":        tokensStr,
 			"started":       session.Started,
 			"duration":      session.Duration,
 			"userprompts":   fmt.Sprintf("%d", session.UserPrompts),
 			"interruptions": fmt.Sprintf("%d", session.Interruptions),
-			"title":         truncatePath(session.Title, 36),
+			"title":         titleStr,
 		})
 	}
 

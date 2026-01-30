@@ -105,28 +105,37 @@ func createSessionTableWithWidth(width int) table.Model {
 	// Calculate responsive column widths
 	availableWidth := width - 6 // Reserve for borders and spacing
 
-	// Column width distribution:
-	// Started: 14 chars (YYYY-MM-DD HH:MM)
-	// Duration: 8 chars (e.g., "12h34m" or "59m")
-	// UserPrompts: 8 chars (user prompt count)
-	// Interruptions: 5 chars (count)
+	// Column width distribution - show maximum detail
+	// Version: 6 chars (v2.1.1)
+	// GitBranch: 10 chars (branch name)
+	// Tokens: 12 chars (1234567/890)
+	// Started: 12 chars (MM-DD HH:MM)
+	// Duration: 7 chars (12h34m)
+	// User: 5 chars (count)
+	// Int: 3 chars (count)
 	// Remaining for title
-	startedWidth := 14
-	durationWidth := 8
-	userPromptsWidth := 8
-	interruptionsWidth := 5
-	titleWidth := availableWidth - startedWidth - durationWidth - userPromptsWidth - interruptionsWidth
+	versionWidth := 6
+	gitWidth := 10
+	tokensWidth := 12
+	startedWidth := 12
+	durationWidth := 7
+	userWidth := 5
+	intWidth := 3
+	titleWidth := availableWidth - versionWidth - gitWidth - tokensWidth - startedWidth - durationWidth - userWidth - intWidth
 
 	// Ensure minimum width for title
-	if titleWidth < 20 {
-		titleWidth = 20
+	if titleWidth < 15 {
+		titleWidth = 15
 	}
 
 	columns := []table.Column{
-		table.NewColumn("started", "STARTED", startedWidth),
-		table.NewColumn("duration", "LENGTH", durationWidth),
-		table.NewColumn("userprompts", "USER", userPromptsWidth),
-		table.NewColumn("interruptions", "INT", interruptionsWidth),
+		table.NewColumn("version", "VER", versionWidth),
+		table.NewColumn("gitbranch", "BRANCH", gitWidth),
+		table.NewColumn("tokens", "TOKENS", tokensWidth),
+		table.NewColumn("started", "START", startedWidth),
+		table.NewColumn("duration", "LEN", durationWidth),
+		table.NewColumn("userprompts", "USR", userWidth),
+		table.NewColumn("interruptions", "INT", intWidth),
 		table.NewColumn("title", "TITLE", titleWidth),
 	}
 

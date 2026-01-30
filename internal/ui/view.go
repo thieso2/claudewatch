@@ -90,17 +90,23 @@ func (m Model) renderSessionDetailView() string {
 			metadataItems = append(metadataItems, "v:"+m.selectedSession.Version)
 		}
 		if m.selectedSession.GitBranch != "" {
-			metadataItems = append(metadataItems, "git:"+m.selectedSession.GitBranch)
+			metadataItems = append(metadataItems, "branch:"+m.selectedSession.GitBranch)
 		}
 		if m.selectedSession.IsSidechain {
 			metadataItems = append(metadataItems, "🔀side-chain")
 		}
 		if m.selectedSession.TotalTokens > 0 {
-			tokens := fmt.Sprintf("tokens:%d", m.selectedSession.TotalTokens)
 			if m.selectedSession.InputTokens > 0 && m.selectedSession.OutputTokens > 0 {
-				tokens = fmt.Sprintf("tokens:%d/%d", m.selectedSession.InputTokens, m.selectedSession.OutputTokens)
+				metadataItems = append(metadataItems, fmt.Sprintf("tokens:%d→%d", m.selectedSession.InputTokens, m.selectedSession.OutputTokens))
+			} else {
+				metadataItems = append(metadataItems, fmt.Sprintf("tokens:%d", m.selectedSession.TotalTokens))
 			}
-			metadataItems = append(metadataItems, tokens)
+		}
+		if m.selectedSession.UserPrompts > 0 {
+			metadataItems = append(metadataItems, fmt.Sprintf("prompts:%d", m.selectedSession.UserPrompts))
+		}
+		if m.selectedSession.Interruptions > 0 {
+			metadataItems = append(metadataItems, fmt.Sprintf("resumptions:%d", m.selectedSession.Interruptions))
 		}
 	}
 
@@ -110,6 +116,18 @@ func (m Model) renderSessionDetailView() string {
 		metadataStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("8"))
 		metadataText = metadataStyle.Render(metadataStr)
+	}
+
+	// First prompt preview
+	firstPromptText := ""
+	if m.selectedSession != nil && m.selectedSession.FirstPrompt != "" {
+		prompt := m.selectedSession.FirstPrompt
+		if len(prompt) > 80 {
+			prompt = prompt[:77] + "..."
+		}
+		promptStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("11"))
+		firstPromptText = promptStyle.Render("Initial: " + prompt)
 	}
 
 	// Stats section
@@ -180,6 +198,9 @@ func (m Model) renderSessionDetailView() string {
 	headerComponents := []string{headerTitle, pathText}
 	if metadataText != "" {
 		headerComponents = append(headerComponents, metadataText)
+	}
+	if firstPromptText != "" {
+		headerComponents = append(headerComponents, firstPromptText)
 	}
 	headerComponents = append(headerComponents, "", statsText, detailedStats, "", "Messages:" + filterText)
 
@@ -423,6 +444,33 @@ func (m Model) renderMessageDetailView() string {
 		toolInfoText = toolInfoStyle.Render(toolInfo)
 	}
 
+	// Token usage info if available (for assistant responses)
+	var tokenInfoText string
+	if m.detailMessage.Type == "assistant_response" && (m.detailMessage.InputTokens > 0 || m.detailMessage.OutputTokens > 0) {
+		var tokenInfo string
+		tokenInfo = fmt.Sprintf("Model: %s", m.detailMessage.Model)
+		tokenInfo += fmt.Sprintf(" | Tokens: %d → %d", m.detailMessage.InputTokens, m.detailMessage.OutputTokens)
+
+		// Show cache info if available
+		if m.detailMessage.CacheCreation > 0 {
+			tokenInfo += fmt.Sprintf(" | Cache-Create: %d", m.detailMessage.CacheCreation)
+		}
+		if m.detailMessage.CacheRead > 0 {
+			tokenInfo += fmt.Sprintf(" | Cache-Hit: %d", m.detailMessage.CacheRead)
+		}
+
+		// Calculate cost estimate (Claude 3.5 Sonnet pricing)
+		inputCost := float64(m.detailMessage.InputTokens+m.detailMessage.CacheCreation) * 0.000003
+		cacheReadCost := float64(m.detailMessage.CacheRead) * 0.0000003
+		outputCost := float64(m.detailMessage.OutputTokens) * 0.000015
+		totalCost := inputCost + cacheReadCost + outputCost
+		tokenInfo += fmt.Sprintf(" | Approx: $%.6f", totalCost)
+
+		tokenInfoStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("6"))
+		tokenInfoText = tokenInfoStyle.Render(tokenInfo)
+	}
+
 	// Content with wrapping
 	content := m.detailMessage.Content
 	lines := strings.Split(content, "\n")
@@ -486,10 +534,13 @@ func (m Model) renderMessageDetailView() string {
 	helpText := "↑/↓: Scroll  |  ←/→: Prev/Next Message  |  PgUp/PgDn: Page  |  Home/End: Jump  |  esc: Back  |  q: Quit"
 	footer := footerStyle.Render(helpText)
 
-	// Build output with optional tool info
+	// Build output with optional tool and token info
 	output := []string{headerTitle, timeText}
 	if toolInfoText != "" {
 		output = append(output, toolInfoText)
+	}
+	if tokenInfoText != "" {
+		output = append(output, tokenInfoText)
 	}
 	output = append(output, "", contentText, "", scrollText, footer)
 
