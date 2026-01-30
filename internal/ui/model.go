@@ -156,34 +156,47 @@ type projectsMsg struct {
 	err      error
 }
 
-// scrollToSelection scrolls the viewport to center the selected message on screen
+// scrollToSelection scrolls the viewport to keep selected message centered
+// The cursor stays at a fixed position on screen, content scrolls around it
 func (m *Model) scrollToSelection() {
 	if len(m.messages) == 0 || m.selectedMessageIdx < 0 {
 		return
 	}
 
-	// Estimate lines per message (header + content lines + metrics + separator)
-	// Using slightly higher estimate for safety
+	// Estimate lines per message
 	avgLinesPerMessage := 9
 
-	// Calculate approximate line number where selected message starts
+	// Calculate line position of selected message in the full rendered content
 	selectedMessageLine := m.selectedMessageIdx * avgLinesPerMessage
 
-	// Position selected message in center of viewport
-	// Using Height / 2 to center it properly
-	centerOffset := m.messageViewport.Height / 2
-	targetScrollPosition := selectedMessageLine - centerOffset
+	// Cursor position on screen: middle of viewport
+	cursorScreenPos := m.messageViewport.Height / 2
 
-	// Clamp to valid range
-	if targetScrollPosition < 0 {
-		targetScrollPosition = 0
+	// Target viewport offset: scroll so selected message appears at cursor position
+	targetOffset := selectedMessageLine - cursorScreenPos
+
+	// Clamp to prevent scrolling above content start
+	if targetOffset < 0 {
+		targetOffset = 0
 	}
 
-	// Directly set scroll position using GotoTop + LineDown
-	// This is more reliable than calculating differences
+	// Calculate maximum scroll position (don't scroll past the end)
+	// Approximate total lines in all messages
+	totalLines := len(m.messages) * avgLinesPerMessage
+	maxOffset := totalLines - m.messageViewport.Height
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+
+	// Clamp target offset to valid range
+	if targetOffset > maxOffset {
+		targetOffset = maxOffset
+	}
+
+	// Set viewport to target offset
 	m.messageViewport.GotoTop()
-	if targetScrollPosition > 0 {
-		m.messageViewport.LineDown(targetScrollPosition)
+	if targetOffset > 0 {
+		m.messageViewport.LineDown(targetOffset)
 	}
 }
 
