@@ -1,0 +1,6 @@
+bin/
+*.dylib
+*.so
+claudewatch
+dist/
+.DS_Store
