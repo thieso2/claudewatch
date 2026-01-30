@@ -231,6 +231,8 @@ func (m Model) loadSessions() tea.Cmd {
 				}
 				userPrompts = metadata.UserPrompts
 				interruptions = metadata.Interruptions
+				gitBranch = metadata.GitBranch
+				isSidechain = metadata.IsSidechain
 				version = metadata.Version
 				firstPrompt = metadata.FirstPrompt
 				totalTokens = metadata.TotalInputTokens + metadata.TotalOutputTokens
@@ -330,6 +332,8 @@ func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
 				}
 				userPrompts = metadata.UserPrompts
 				interruptions = metadata.Interruptions
+				gitBranch = metadata.GitBranch
+				isSidechain = metadata.IsSidechain
 				version = metadata.Version
 				firstPrompt = metadata.FirstPrompt
 				totalTokens = metadata.TotalInputTokens + metadata.TotalOutputTokens

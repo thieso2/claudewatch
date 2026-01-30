@@ -37,10 +37,12 @@ import (
 
 // SessionEntry represents a single entry in a session JSONL file
 type SessionEntry struct {
-	Type      string                 `json:"type"`
-	Timestamp string                 `json:"timestamp"`
-	Version   string                 `json:"version"`
-	Message   *struct {
+	Type        string                 `json:"type"`
+	Timestamp   string                 `json:"timestamp"`
+	Version     string                 `json:"version"`
+	GitBranch   string                 `json:"gitBranch"`
+	IsSidechain bool                   `json:"isSidechain"`
+	Message     *struct {
 		Role    string        `json:"role"`
 		Content interface{}   `json:"content"` // Can be string or array
 	} `json:"message"`
@@ -381,16 +383,18 @@ type TokenUsage struct {
 
 // SessionMetadata contains quick metadata about a session without full parsing
 type SessionMetadata struct {
-	Started          time.Time
-	Ended            time.Time
-	Duration         time.Duration
-	MessageCount     int
-	UserPrompts      int
-	Interruptions    int
-	TotalInputTokens int
+	Started           time.Time
+	Ended             time.Time
+	Duration          time.Duration
+	MessageCount      int
+	UserPrompts       int
+	Interruptions     int
+	TotalInputTokens  int
 	TotalOutputTokens int
-	Version          string // Claude version from first message
-	FirstPrompt      string // First user message
+	Version           string // Claude version from first message
+	FirstPrompt       string // First user message
+	GitBranch         string // Git branch from first message
+	IsSidechain       bool   // Whether this is a side-chain conversation
 }
 
 // SessionIndexEntry represents a single entry in sessions-index.json
@@ -434,7 +438,8 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 	var lastMessageTime time.Time
 	var interruptions int
 	var totalInputTokens, totalOutputTokens int
-	var version, firstPrompt string
+	var version, firstPrompt, gitBranch string
+	var isSidechain bool
 	const interruptionGap = 1 * time.Hour // Consider >1 hour gap as interruption
 
 	for scanner.Scan() {
@@ -458,6 +463,8 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 		if firstTime.IsZero() {
 			firstTime = ts
 			version = entry.Version // Get version from first entry
+			gitBranch = entry.GitBranch // Get git branch from first entry
+			isSidechain = entry.IsSidechain // Get sidechain flag from first entry
 		}
 		lastTime = ts
 
@@ -526,6 +533,8 @@ func GetSessionMetadata(filePath string) (*SessionMetadata, error) {
 		TotalOutputTokens: totalOutputTokens,
 		Version:           version,
 		FirstPrompt:       firstPrompt,
+		GitBranch:         gitBranch,
+		IsSidechain:       isSidechain,
 	}, nil
 }
 

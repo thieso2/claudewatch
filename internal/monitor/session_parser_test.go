@@ -37,6 +37,8 @@ func TestSessionMetadataExtraction(t *testing.T) {
 		{"MessageCount", metadata.MessageCount, 4},
 		{"UserPrompts", metadata.UserPrompts, 2},
 		{"Interruptions", metadata.Interruptions, 0},
+		{"GitBranch", metadata.GitBranch, "main"},
+		{"IsSidechain", metadata.IsSidechain, false},
 	}
 
 	for _, tt := range tests {
