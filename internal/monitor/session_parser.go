@@ -49,12 +49,17 @@ type SessionEntry struct {
 
 // Message represents a user message or response
 type Message struct {
-	Role      string
-	Content   string
-	Timestamp time.Time
-	Type      string // "prompt", "assistant_response", or "tool_result"
-	ToolName  string // Name of tool that was called
-	ToolInput string // Input passed to tool
+	Role              string
+	Content           string
+	Timestamp         time.Time
+	Type              string // "prompt", "assistant_response", or "tool_result"
+	ToolName          string // Name of tool that was called
+	ToolInput         string // Input passed to tool
+	Model             string // Claude model used (assistant messages only)
+	InputTokens       int    // Number of input tokens (assistant messages)
+	OutputTokens      int    // Number of output tokens (assistant messages)
+	CacheCreation     int    // Tokens used for cache creation
+	CacheRead         int    // Tokens read from cache
 }
 
 // SessionStats contains aggregated session statistics
@@ -149,6 +154,30 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 			var toolName string
 			var toolInput string
 			var msgType string
+			var model string
+			var inputTokens, outputTokens, cacheCreation, cacheRead int
+
+			// For assistant messages, try to extract token usage from full JSON
+			if entry.Message.Role == "assistant" {
+				var detailedEntry struct {
+					Message struct {
+						Model string `json:"model"`
+						Usage struct {
+							InputTokens               int `json:"input_tokens"`
+							CacheCreationInputTokens  int `json:"cache_creation_input_tokens"`
+							CacheReadInputTokens      int `json:"cache_read_input_tokens"`
+							OutputTokens              int `json:"output_tokens"`
+						} `json:"usage"`
+					} `json:"message"`
+				}
+				if err := json.Unmarshal(scanner.Bytes(), &detailedEntry); err == nil {
+					model = detailedEntry.Message.Model
+					inputTokens = detailedEntry.Message.Usage.InputTokens
+					outputTokens = detailedEntry.Message.Usage.OutputTokens
+					cacheCreation = detailedEntry.Message.Usage.CacheCreationInputTokens
+					cacheRead = detailedEntry.Message.Usage.CacheReadInputTokens
+				}
+			}
 
 			if content, ok := entry.Message.Content.(string); ok {
 				contentStr = content
@@ -219,12 +248,17 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 				}
 
 				msg := Message{
-					Role:      entry.Message.Role,
-					Content:   contentStr,
-					Timestamp: timestamp,
-					Type:      msgType,
-					ToolName:  toolName,
-					ToolInput: toolInput,
+					Role:          entry.Message.Role,
+					Content:       contentStr,
+					Timestamp:     timestamp,
+					Type:          msgType,
+					ToolName:      toolName,
+					ToolInput:     toolInput,
+					Model:         model,
+					InputTokens:   inputTokens,
+					OutputTokens:  outputTokens,
+					CacheCreation: cacheCreation,
+					CacheRead:     cacheRead,
 				}
 				stats.MessageHistory = append(stats.MessageHistory, msg)
 			}
