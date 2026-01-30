@@ -93,29 +93,33 @@ func (m Model) renderSessionDetailView() string {
 		Foreground(lipgloss.Color("8")).
 		Render(stats.GetDetailedStats())
 
-	// Messages section
-	var messagesContent string
+	// Messages section - build components as array to maintain consistent spacing
+	var messagesComponents []string
+
 	if m.filteredMessageCount == 0 {
 		// Show feedback when filter results in no messages
 		feedbackStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("3"))
 		if m.messageError != "" {
-			messagesContent = feedbackStyle.Render(m.messageError)
+			messagesComponents = append(messagesComponents, feedbackStyle.Render(m.messageError))
 		} else {
-			messagesContent = feedbackStyle.Render("No messages to display with current filter")
+			messagesComponents = append(messagesComponents, feedbackStyle.Render("No messages to display with current filter"))
 		}
 	} else if m.messageError != "" && m.messageFilter != FilterAll {
 		// Show status message for filter mode
 		statusStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("10"))
-		messagesContent = statusStyle.Render(m.messageError) + "\n\n" + m.messageTable.View()
+		messagesComponents = append(messagesComponents, statusStyle.Render(m.messageError))
+		messagesComponents = append(messagesComponents, m.messageTable.View())
 	} else if len(stats.MessageHistory) == 0 {
-		messagesContent = lipgloss.NewStyle().
+		messagesComponents = append(messagesComponents, lipgloss.NewStyle().
 			Foreground(lipgloss.Color("8")).
-			Render("No messages in this session")
+			Render("No messages in this session"))
 	} else {
-		messagesContent = m.messageTable.View()
+		messagesComponents = append(messagesComponents, m.messageTable.View())
 	}
+
+	messagesContent := lipgloss.JoinVertical(lipgloss.Left, messagesComponents...)
 
 	// Filter status with count
 	filterStr := ""
