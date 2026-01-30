@@ -1,6 +1,10 @@
 package ui
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -30,10 +34,19 @@ type ViewMode int
 
 const (
 	ViewProcesses ViewMode = iota
+	ViewProjects
 	ViewSessions
 	ViewSessionDetail
 	ViewMessageDetail
 )
+
+// ProjectDir represents a project directory with metadata
+type ProjectDir struct {
+	Name     string
+	Path     string
+	Modified time.Time
+	Sessions int // Count of session files
+}
 
 type MessageFilter int
 
@@ -54,6 +67,12 @@ type Model struct {
 	quitting       bool
 	sortColumn     string
 	sortAscending  bool
+
+	// Projects view
+	projectsTable    table.Model
+	projects         []ProjectDir
+	selectedProjIdx  int
+	projectsError    string
 
 	// Session view
 	viewMode         ViewMode
@@ -107,6 +126,12 @@ type sessionDetailMsg struct {
 	err   error
 }
 
+// projectsMsg carries loaded project directory data
+type projectsMsg struct {
+	projects []ProjectDir
+	err      error
+}
+
 // NewModel creates a new UI model
 func NewModel(updateInterval time.Duration, showHelpers bool) Model {
 	m := Model{
@@ -122,6 +147,7 @@ func NewModel(updateInterval time.Duration, showHelpers bool) Model {
 	}
 
 	m.table = createTableWithWidth(m.termWidth)
+	m.projectsTable = createProjectsTableWithWidth(m.termWidth)
 	m.sessionTable = createSessionTableWithWidth(m.termWidth)
 	m.messageTable = createMessageTableWithWidth(m.termWidth)
 	return m
@@ -200,4 +226,72 @@ func (m Model) loadSessionDetail() tea.Cmd {
 
 		return sessionDetailMsg{stats: stats}
 	}
+}
+
+// loadProjects kicks off an asynchronous project directory loading
+func (m Model) loadProjects() tea.Cmd {
+	return func() tea.Msg {
+		projects, err := m.getProjectDirs()
+		return projectsMsg{
+			projects: projects,
+			err:      err,
+		}
+	}
+}
+
+// getProjectDirs returns all project directories sorted by modification time (newest first)
+func (m Model) getProjectDirs() ([]ProjectDir, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("cannot get home directory: %w", err)
+	}
+
+	projectsPath := filepath.Join(home, ".claude", "projects")
+	entries, err := os.ReadDir(projectsPath)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read projects directory: %w", err)
+	}
+
+	var projects []ProjectDir
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		// Count JSONL files in this directory
+		sessionCount := 0
+		dirPath := filepath.Join(projectsPath, entry.Name())
+		sessionEntries, err := os.ReadDir(dirPath)
+		if err == nil {
+			for _, se := range sessionEntries {
+				if !se.IsDir() && strings.HasSuffix(se.Name(), ".jsonl") {
+					sessionCount++
+				}
+			}
+		}
+
+		projects = append(projects, ProjectDir{
+			Name:     entry.Name(),
+			Path:     dirPath,
+			Modified: info.ModTime(),
+			Sessions: sessionCount,
+		})
+	}
+
+	// Sort by modification time (newest first)
+	for i := 0; i < len(projects); i++ {
+		for j := i + 1; j < len(projects); j++ {
+			if projects[j].Modified.After(projects[i].Modified) {
+				projects[i], projects[j] = projects[j], projects[i]
+			}
+		}
+	}
+
+	return projects, nil
 }

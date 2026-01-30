@@ -184,3 +184,34 @@ func createMessageTableWithWidth(width int) table.Model {
 
 	return t
 }
+
+// createProjectsTableWithWidth creates a projects directory table with responsive widths
+func createProjectsTableWithWidth(width int) table.Model {
+	// Calculate responsive column widths
+	availableWidth := width - 6
+
+	nameWidth := (availableWidth * 40) / 100
+	modifiedWidth := (availableWidth * 30) / 100
+	sessionsWidth := availableWidth - nameWidth - modifiedWidth
+
+	// Ensure minimum widths
+	if nameWidth < 25 {
+		nameWidth = 25
+	}
+
+	columns := []table.Column{
+		table.NewColumn("name", "PROJECT", nameWidth),
+		table.NewColumn("modified", "MODIFIED", modifiedWidth),
+		table.NewColumn("sessions", "SESSIONS", sessionsWidth),
+	}
+
+	t := table.New(columns).
+		WithPageSize(20).
+		WithBaseStyle(
+			lipgloss.NewStyle().
+				Foreground(lipgloss.Color("255")),
+		).
+		Focused(true)
+
+	return t
+}

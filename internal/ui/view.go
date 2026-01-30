@@ -26,6 +26,10 @@ func (m Model) View() string {
 		return m.renderSessionView()
 	}
 
+	if m.viewMode == ViewProjects {
+		return m.renderProjectsView()
+	}
+
 	if len(m.processes) == 0 {
 		return m.renderEmpty()
 	}
@@ -213,6 +217,59 @@ func (m Model) renderSessionView() string {
 	)
 }
 
+// renderProjectsView displays all project directories sorted by modification time
+func (m Model) renderProjectsView() string {
+	// Header with title
+	headerTitle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("11")).
+		Render("Claude Projects (~/.claude/projects)")
+
+	projectCount := fmt.Sprintf("%d projects", len(m.projects))
+	countStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	countText := countStyle.Render(projectCount)
+
+	headerLine := lipgloss.JoinVertical(
+		lipgloss.Left,
+		headerTitle,
+		countText,
+	)
+
+	// Check for errors
+	if m.projectsError != "" {
+		errorStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("1"))
+		errorText := errorStyle.Render("Error: " + m.projectsError)
+		return lipgloss.JoinVertical(lipgloss.Left, headerLine, "", errorText, "", footerHint())
+	}
+
+	// Show table or empty message
+	var content string
+	if len(m.projects) == 0 {
+		// Show empty message when no projects found
+		content = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("8")).
+			Render("No projects found in ~/.claude/projects")
+	} else {
+		content = m.projectsTable.View()
+	}
+
+	footerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	helpText := "↑/↓: Navigate  |  enter: View sessions  |  p: Processes  |  q: Quit"
+	footer := footerStyle.Render(helpText)
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		headerLine,
+		"",
+		content,
+		"",
+		footer,
+	)
+}
+
 // renderWithTable displays the full UI with the process table
 func (m Model) renderWithTable() string {
 	// Header with title and status
@@ -249,7 +306,7 @@ func (m Model) renderWithTable() string {
 	footerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8"))
 
-	helpText := "↑/↓: Navigate  |  enter: View sessions  |  r: Refresh  |  f: Toggle helpers  |  q: Quit"
+	helpText := "↑/↓: Navigate  |  enter: View sessions  |  p: Projects  |  r: Refresh  |  f: Toggle helpers  |  q: Quit"
 	footer := footerStyle.Render(helpText)
 
 	return lipgloss.JoinVertical(

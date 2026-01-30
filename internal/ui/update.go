@@ -51,6 +51,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.showHelpers = !m.showHelpers
 				return m, m.refreshProcesses()
 			}
+		case "p":
+			// Toggle between processes and projects view
+			if m.viewMode == ViewProcesses {
+				m.viewMode = ViewProjects
+				m.selectedProjIdx = 0
+				return m, m.loadProjects()
+			} else if m.viewMode == ViewProjects {
+				m.viewMode = ViewProcesses
+				m.selectedProcIdx = 0
+				return m, m.refreshProcesses()
+			}
 		case "u":
 			// Filter to user messages only (in session detail view)
 			if m.viewMode == ViewSessionDetail {
@@ -151,16 +162,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case projectsMsg:
+		if msg.err != nil {
+			m.projectsError = msg.err.Error()
+		} else {
+			m.projectsError = ""
+			m.projects = msg.projects
+			m.updateProjectsTable()
+		}
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		// Handle terminal resize
 		m.termWidth = msg.Width
 		m.termHeight = msg.Height
 		// Recreate tables with new responsive widths
 		m.table = createTableWithWidth(msg.Width).WithPageSize(msg.Height - 4)
+		m.projectsTable = createProjectsTableWithWidth(msg.Width).WithPageSize(msg.Height - 4)
 		m.sessionTable = createSessionTableWithWidth(msg.Width).WithPageSize(msg.Height - 4)
 		m.messageTable = createMessageTableWithWidth(msg.Width).WithPageSize(msg.Height - 10)
 		// Rebuild tables with current data
 		m.updateTable()
+		m.updateProjectsTable()
 		m.updateSessionTable()
 		m.updateMessageTable()
 		return m, nil
@@ -180,6 +203,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "down":
 				if m.selectedProcIdx < len(m.processes)-1 {
 					m.selectedProcIdx++
+				}
+			}
+		}
+	} else if m.viewMode == ViewProjects {
+		m.projectsTable, cmd = m.projectsTable.Update(msg)
+		// Track arrow key presses for project selection
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			switch keyMsg.String() {
+			case "up":
+				if m.selectedProjIdx > 0 {
+					m.selectedProjIdx--
+				}
+			case "down":
+				if m.selectedProjIdx < len(m.projects)-1 {
+					m.selectedProjIdx++
 				}
 			}
 		}
@@ -321,6 +359,24 @@ func (m *Model) updateSessionTable() {
 	}
 
 	m.sessionTable = m.sessionTable.WithRows(rows)
+}
+
+// updateProjectsTable rebuilds the projects table with current project data
+func (m *Model) updateProjectsTable() {
+	rows := make([]table.Row, len(m.projects))
+
+	for i, proj := range m.projects {
+		modifiedStr := proj.Modified.Format("2006-01-02 15:04")
+		sessionsStr := fmt.Sprintf("%d", proj.Sessions)
+
+		rows[i] = table.NewRow(table.RowData{
+			"name":      truncatePath(proj.Name, 40),
+			"modified":  modifiedStr,
+			"sessions":  sessionsStr,
+		})
+	}
+
+	m.projectsTable = m.projectsTable.WithRows(rows)
 }
 
 // updateMessageTable rebuilds the message table with current message data
