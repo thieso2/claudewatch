@@ -105,27 +105,27 @@ func createSessionTableWithWidth(width int) table.Model {
 	// Calculate responsive column widths
 	availableWidth := width - 6 // Reserve for borders and spacing
 
-	// Column width distribution - show maximum detail
-	// Version: 6 chars (v2.1.1)
-	// GitBranch: 10 chars (branch name)
-	// Tokens: 12 chars (1234567/890)
-	// Started: 12 chars (MM-DD HH:MM)
-	// Duration: 7 chars (12h34m)
-	// User: 5 chars (count)
-	// Int: 3 chars (count)
+	// Column width distribution - sized for actual data
+	// Version: 8 chars (v2.1.25)
+	// GitBranch: 12 chars (feature/name or "-")
+	// Tokens: 16 chars (5039568/5211 format)
+	// Started: 16 chars (2026-01-30 14:23)
+	// Duration: 7 chars (12h34m or 999m)
+	// User: 6 chars (count, up to 1023+)
+	// Int: 4 chars (count)
 	// Remaining for title
-	versionWidth := 6
-	gitWidth := 10
-	tokensWidth := 12
-	startedWidth := 12
+	versionWidth := 8
+	gitWidth := 12
+	tokensWidth := 16
+	startedWidth := 16
 	durationWidth := 7
-	userWidth := 5
-	intWidth := 3
+	userWidth := 6
+	intWidth := 4
 	titleWidth := availableWidth - versionWidth - gitWidth - tokensWidth - startedWidth - durationWidth - userWidth - intWidth
 
 	// Ensure minimum width for title
-	if titleWidth < 15 {
-		titleWidth = 15
+	if titleWidth < 20 {
+		titleWidth = 20
 	}
 
 	columns := []table.Column{
