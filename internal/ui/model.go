@@ -125,6 +125,10 @@ type Model struct {
 	// Message detail view
 	detailMessage        *monitor.Message // Full message being displayed
 	detailScrollOffset   int              // Scroll position in message detail
+
+	// Scroll tracking
+	lastMessageIdx       int   // Track last selected message for stable scrolling
+	messageLinesMap      map[int]int // Map of message index to line count for accurate scrolling
 }
 
 
@@ -156,50 +160,59 @@ type projectsMsg struct {
 	err      error
 }
 
-// scrollToSelection scrolls the viewport to keep selected message centered on screen
-// Accurately accounts for actual line heights of rendered messages
+// scrollToSelection scrolls the viewport to keep selected message visible
+// Uses actual line heights from messageLinesMap for accurate cursor positioning
 func (m *Model) scrollToSelection() {
-	if len(m.messages) == 0 || m.selectedMessageIdx < 0 {
+	if len(m.messages) == 0 || m.selectedMessageIdx < 0 || len(m.messageLinesMap) == 0 {
 		return
 	}
 
-	// Count actual lines up to and including selected message
-	// New format: header(1) + content(1) + metrics(1-2) + separator(1) = 4-5 lines per message
-	// Using conservative estimate of 5 lines per message
-	linesPerMessage := 5
+	// Calculate exact scroll delta by summing actual line heights between old and new position
+	linesDelta := 0
+	start := m.lastMessageIdx
+	end := m.selectedMessageIdx
 
-	// Calculate the line number where selected message starts
-	selectedMessageStartLine := m.selectedMessageIdx * linesPerMessage
-
-	// Center the selected message on screen
-	// Viewport middle position where we want the message to appear
-	viewportCenter := m.messageViewport.Height / 2
-
-	// Calculate target scroll offset
-	// Offset should position selected message at center of viewport
-	targetOffset := selectedMessageStartLine - viewportCenter
-
-	// Ensure we don't scroll above the beginning
-	if targetOffset < 0 {
-		targetOffset = 0
+	if start < end {
+		// Moving down - sum lines for messages from start+1 to end (inclusive)
+		for i := start + 1; i <= end; i++ {
+			if lines, ok := m.messageLinesMap[i]; ok {
+				linesDelta += lines
+			}
+		}
+		m.messageViewport.LineDown(linesDelta)
+	} else if start > end {
+		// Moving up - sum lines for messages from end to start-1 (inclusive)
+		for i := end; i < start; i++ {
+			if lines, ok := m.messageLinesMap[i]; ok {
+				linesDelta += lines
+			}
+		}
+		m.messageViewport.LineUp(linesDelta)
 	}
 
-	// Ensure we don't scroll past the end
-	// Total content lines (conservative estimate)
-	totalContentLines := len(m.messages) * linesPerMessage
+	// Update last position
+	m.lastMessageIdx = m.selectedMessageIdx
+
+	// Verify we're within bounds and adjust if needed
+	// Calculate total content lines by summing all message line counts
+	totalContentLines := 0
+	for _, count := range m.messageLinesMap {
+		totalContentLines += count
+	}
+
 	maxOffset := totalContentLines - m.messageViewport.Height
 	if maxOffset < 0 {
 		maxOffset = 0
 	}
 
-	if targetOffset > maxOffset {
-		targetOffset = maxOffset
-	}
-
-	// Apply the scroll position
-	m.messageViewport.GotoTop()
-	if targetOffset > 0 {
-		m.messageViewport.LineDown(targetOffset)
+	currentOffset := m.messageViewport.YOffset
+	if currentOffset > maxOffset {
+		// Scrolled past the end, adjust back
+		m.messageViewport.GotoTop()
+		m.messageViewport.LineDown(maxOffset)
+	} else if currentOffset < 0 {
+		// Somehow scrolled above start, reset to top
+		m.messageViewport.GotoTop()
 	}
 }
 

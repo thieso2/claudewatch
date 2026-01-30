@@ -181,6 +181,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.messageError = ""
 			m.sessionStats = msg.stats
 			m.selectedMessageIdx = 0 // Reset cursor to first message
+			m.lastMessageIdx = 0 // Reset scroll tracking
 			m.messageViewport.GotoTop() // Reset viewport scroll when loading new session
 			m.updateMessageTable()
 		}

@@ -553,18 +553,24 @@ func (m Model) renderMessageDetailView() string {
 }
 
 // renderMessageCards renders all messages as cards for the viewport with cursor
-func (m Model) renderMessageCards() string {
+// Also builds messageLinesMap for accurate scroll calculations
+func (m *Model) renderMessageCards() string {
 	if len(m.messages) == 0 {
 		return "No messages to display"
 	}
 
 	var cards []string
+	m.messageLinesMap = make(map[int]int) // Reset line map
 
 	// Render all cards with cursor indicator
 	for i := range m.messages {
 		isSelected := (i == m.selectedMessageIdx)
 		card := renderMessageCard(m.messages[i], isSelected)
 		cards = append(cards, card)
+
+		// Count actual lines in rendered card (count newlines + 1)
+		lineCount := strings.Count(card, "\n") + 1
+		m.messageLinesMap[i] = lineCount
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, cards...)
