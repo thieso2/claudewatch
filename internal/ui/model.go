@@ -304,22 +304,38 @@ func (m Model) loadSessions() tea.Cmd {
 				outputTokens = metadata.TotalOutputTokens
 			}
 
+			// Extract last message info
+			var lastMessage string
+			var lastMessageTime int64
+			if stats, err := monitor.ParseSessionFile(s.FilePath); err == nil && len(stats.MessageHistory) > 0 {
+				lastMsg := stats.MessageHistory[len(stats.MessageHistory)-1]
+				lastMessageTime = lastMsg.Timestamp.Unix()
+				content := lastMsg.Content
+				if len(content) > 100 {
+					content = content[:97] + "…"
+				}
+				content = strings.Join(strings.Fields(content), " ")
+				lastMessage = content
+			}
+
 			sessionInfos[i] = SessionInfo{
-				ID:            s.ID,
-				Title:         s.GetSessionInfo(),
-				Updated:       s.GetSessionTime(),
-				Path:          s.FilePath,
-				Started:       startedStr,
-				Duration:      durationStr,
-				UserPrompts:   userPrompts,
-				Interruptions: interruptions,
-				GitBranch:     gitBranch,
-				IsSidechain:   isSidechain,
-				Version:       version,
-				FirstPrompt:   firstPrompt,
-				TotalTokens:   totalTokens,
-				InputTokens:   inputTokens,
-				OutputTokens:  outputTokens,
+				ID:              s.ID,
+				Title:           s.GetSessionInfo(),
+				Updated:         s.GetSessionTime(),
+				Path:            s.FilePath,
+				Started:         startedStr,
+				Duration:        durationStr,
+				UserPrompts:     userPrompts,
+				Interruptions:   interruptions,
+				GitBranch:       gitBranch,
+				IsSidechain:     isSidechain,
+				Version:         version,
+				FirstPrompt:     firstPrompt,
+				TotalTokens:     totalTokens,
+				InputTokens:     inputTokens,
+				OutputTokens:    outputTokens,
+				LastMessage:     lastMessage,
+				LastMessageTime: lastMessageTime,
 			}
 		}
 
@@ -405,6 +421,21 @@ func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
 				outputTokens = metadata.TotalOutputTokens
 			}
 
+
+		// Extract last message info
+		var lastMessage string
+		var lastMessageTime int64
+		if stats, err := monitor.ParseSessionFile(sessionPath); err == nil && len(stats.MessageHistory) > 0 {
+			lastMsg := stats.MessageHistory[len(stats.MessageHistory)-1]
+			lastMessageTime = lastMsg.Timestamp.Unix()
+			content := lastMsg.Content
+			if len(content) > 100 {
+				content = content[:97] + "…"
+			}
+			content = strings.Join(strings.Fields(content), " ")
+			lastMessage = content
+		}
+
 			sessions = append(sessions, SessionInfo{
 				ID:            sessionID,
 				Title:         sessionID, // Use ID as title for project sessions
@@ -421,6 +452,8 @@ func (m Model) loadSessionsFromProject(project ProjectDir) tea.Cmd {
 				TotalTokens:   totalTokens,
 				InputTokens:   inputTokens,
 				OutputTokens:  outputTokens,
+			LastMessage:     lastMessage,
+			LastMessageTime: lastMessageTime,
 			})
 		}
 

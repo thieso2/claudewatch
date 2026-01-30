@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -440,6 +441,11 @@ func (m *Model) updateTable() {
 
 // updateSessionTable rebuilds the session table with current session data
 func (m *Model) updateSessionTable() {
+	// Sort sessions by last message time (newest first)
+	sort.Slice(m.sessions, func(i, j int) bool {
+		return m.sessions[i].LastMessageTime > m.sessions[j].LastMessageTime
+	})
+
 	// Recreate session table with dynamic widths based on current data
 	m.sessionTable = CreateSessionTableWithDynamicWidths(m.termWidth, m.sessions)
 
@@ -456,6 +462,21 @@ func (m *Model) updateSessionTable() {
 		gitStr := session.GitBranch
 		if gitStr == "" {
 			gitStr = "-"
+		}
+
+		// Format last message time (show as "HH:MM" or "-" if empty)
+		lastMsgTimeStr := "-"
+		if session.LastMessageTime > 0 {
+			lastMsgTimeStr = time.Unix(session.LastMessageTime, 0).Format("2006-01-02 15:04")
+		}
+
+		// Format last message preview
+		lastMsgPreview := "-"
+		if session.LastMessage != "" {
+			lastMsgPreview = session.LastMessage
+			if len(lastMsgPreview) > 50 {
+				lastMsgPreview = lastMsgPreview[:47] + "…"
+			}
 		}
 
 		// Format tokens (show as "input/output" or "-" if none)
@@ -477,12 +498,11 @@ func (m *Model) updateSessionTable() {
 		rows[i] = table.NewRow(table.RowData{
 			"version":       versionStr,
 			"gitbranch":     gitStr,
+			"lastmsgtime":   lastMsgTimeStr,
 			"tokens":        tokensStr,
 			"started":       session.Started,
 			"duration":      session.Duration,
-			"userprompts":   fmt.Sprintf("%d", session.UserPrompts),
-			"interruptions": fmt.Sprintf("%d", session.Interruptions),
-			"title":         titleStr,
+			"lastmessage":   lastMsgPreview,
 		})
 	}
 

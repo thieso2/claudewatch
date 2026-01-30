@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/evertras/bubble-table/table"
 )
@@ -109,35 +111,32 @@ func createSessionTableWithWidth(width int) table.Model {
 	// Column width distribution - sized for actual data
 	// Version: 8 chars (v2.1.25)
 	// GitBranch: 20 chars (ingress-validation or feature/name)
+	// LastMsg: 16 chars (timestamp)
 	// Tokens: 16 chars (5039568/5211 format)
 	// Started: 16 chars (2026-01-30 14:23)
 	// Duration: 7 chars (12h34m or 999m)
-	// User: 6 chars (count, up to 1023+)
-	// Int: 4 chars (count)
-	// Remaining for title
+	// Remaining for last message preview
 	versionWidth := 8
 	gitWidth := 20
+	lastMsgTimeWidth := 16
 	tokensWidth := 16
 	startedWidth := 16
 	durationWidth := 7
-	userWidth := 6
-	intWidth := 4
-	titleWidth := availableWidth - versionWidth - gitWidth - tokensWidth - startedWidth - durationWidth - userWidth - intWidth
+	lastMsgWidth := availableWidth - versionWidth - gitWidth - lastMsgTimeWidth - tokensWidth - startedWidth - durationWidth
 
-	// Ensure minimum width for title
-	if titleWidth < 20 {
-		titleWidth = 20
+	// Ensure minimum width for last message
+	if lastMsgWidth < 30 {
+		lastMsgWidth = 30
 	}
 
 	columns := []table.Column{
 		table.NewColumn("version", "VER", versionWidth),
 		table.NewColumn("gitbranch", "BRANCH", gitWidth),
+		table.NewColumn("lastmsgtime", "LAST MSG", lastMsgTimeWidth),
 		table.NewColumn("tokens", "TOKENS", tokensWidth),
 		table.NewColumn("started", "START", startedWidth),
 		table.NewColumn("duration", "LEN", durationWidth),
-		table.NewColumn("userprompts", "USR", userWidth),
-		table.NewColumn("interruptions", "INT", intWidth),
-		table.NewColumn("title", "TITLE", titleWidth),
+		table.NewColumn("lastmessage", "PREVIEW", lastMsgWidth),
 	}
 
 	t := table.New(columns).
@@ -237,12 +236,11 @@ func createProjectsTableWithWidth(width int) table.Model {
 type ColumnWidths struct {
 	Version       int
 	GitBranch     int
+	LastMsgTime   int
 	Tokens        int
 	Started       int
 	Duration      int
-	UserPrompts   int
-	Interruptions int
-	Title         int
+	LastMessage   int
 }
 
 // CalculateSessionTableWidths calculates optimal column widths based on session data
@@ -250,13 +248,13 @@ func CalculateSessionTableWidths(width int, sessions []SessionInfo) ColumnWidths
 	availableWidth := width - 6 // Reserve for borders and spacing
 
 	// Calculate maximum width needed for each column based on actual data
-	maxVersionWidth := len("v2.1.27")        // e.g., "v2.1.27"
-	maxGitWidth := len("main")               // default minimum
-	maxTokensWidth := len("9999999/9999999") // very large tokens
+	maxVersionWidth := len("v2.1.27")              // e.g., "v2.1.27"
+	maxGitWidth := len("main")                     // default minimum
+	maxLastMsgTimeWidth := len("2026-01-30 15:04") // timestamp format
+	maxTokensWidth := len("9999999/9999999")       // very large tokens
 	maxStartedWidth := len("2026-01-30 14:23")
 	maxDurationWidth := len("999h59m")
-	maxUserWidth := len("1023+")
-	maxIntWidth := len("999")
+	maxLastMessageWidth := len("This is a message preview…") // typical message preview
 
 	// Scan sessions for actual data widths
 	for _, session := range sessions {
@@ -277,6 +275,14 @@ func CalculateSessionTableWidths(width int, sessions []SessionInfo) ColumnWidths
 			maxGitWidth = len(gitStr)
 		}
 
+		// Check last message time width
+		if session.LastMessageTime > 0 {
+			lastMsgTimeStr := time.Unix(session.LastMessageTime, 0).Format("2006-01-02 15:04")
+			if len(lastMsgTimeStr) > maxLastMsgTimeWidth {
+				maxLastMsgTimeWidth = len(lastMsgTimeStr)
+			}
+		}
+
 		// Check tokens width
 		if session.TotalTokens > 0 {
 			tokensStr := fmt.Sprintf("%d/%d", session.InputTokens, session.OutputTokens)
@@ -285,27 +291,26 @@ func CalculateSessionTableWidths(width int, sessions []SessionInfo) ColumnWidths
 			}
 		}
 
-		// Check user prompts width
-		userStr := fmt.Sprintf("%d", session.UserPrompts)
-		if len(userStr) > maxUserWidth {
-			maxUserWidth = len(userStr)
-		}
-
-		// Check interruptions width
-		intStr := fmt.Sprintf("%d", session.Interruptions)
-		if len(intStr) > maxIntWidth {
-			maxIntWidth = len(intStr)
+		// Check last message preview width
+		if session.LastMessage != "" {
+			lastMsgPreview := session.LastMessage
+			if len(lastMsgPreview) > 50 {
+				lastMsgPreview = lastMsgPreview[:47] + "…"
+			}
+			if len(lastMsgPreview) > maxLastMessageWidth {
+				maxLastMessageWidth = len(lastMsgPreview)
+			}
 		}
 	}
 
 	// Add padding (1 char on each side)
 	maxVersionWidth += 2
 	maxGitWidth += 2
+	maxLastMsgTimeWidth += 2
 	maxTokensWidth += 2
 	maxStartedWidth += 2
 	maxDurationWidth += 2
-	maxUserWidth += 2
-	maxIntWidth += 2
+	maxLastMessageWidth += 2
 
 	// Fixed columns (headers add some width)
 	versionWidth := maxVersionWidth
@@ -316,6 +321,11 @@ func CalculateSessionTableWidths(width int, sessions []SessionInfo) ColumnWidths
 	gitWidth := maxGitWidth
 	if gitWidth < len("BRANCH")+2 {
 		gitWidth = len("BRANCH") + 2
+	}
+
+	lastMsgTimeWidth := maxLastMsgTimeWidth
+	if lastMsgTimeWidth < len("LAST MSG")+2 {
+		lastMsgTimeWidth = len("LAST MSG") + 2
 	}
 
 	tokensWidth := maxTokensWidth
@@ -333,34 +343,23 @@ func CalculateSessionTableWidths(width int, sessions []SessionInfo) ColumnWidths
 		durationWidth = len("LEN") + 2
 	}
 
-	userWidth := maxUserWidth
-	if userWidth < len("USR")+2 {
-		userWidth = len("USR") + 2
-	}
-
-	intWidth := maxIntWidth
-	if intWidth < len("INT")+2 {
-		intWidth = len("INT") + 2
-	}
-
 	// Fixed columns total
-	fixedWidth := versionWidth + gitWidth + tokensWidth + startedWidth + durationWidth + userWidth + intWidth
+	fixedWidth := versionWidth + gitWidth + lastMsgTimeWidth + tokensWidth + startedWidth + durationWidth
 
-	// Title gets remaining space, but ensure minimum
-	titleWidth := availableWidth - fixedWidth
-	if titleWidth < 20 {
-		titleWidth = 20
+	// Last message preview gets remaining space, but ensure minimum
+	lastMessageWidth := availableWidth - fixedWidth
+	if lastMessageWidth < 30 {
+		lastMessageWidth = 30
 	}
 
 	return ColumnWidths{
-		Version:       versionWidth,
-		GitBranch:     gitWidth,
-		Tokens:        tokensWidth,
-		Started:       startedWidth,
-		Duration:      durationWidth,
-		UserPrompts:   userWidth,
-		Interruptions: intWidth,
-		Title:         titleWidth,
+		Version:     versionWidth,
+		GitBranch:   gitWidth,
+		LastMsgTime: lastMsgTimeWidth,
+		Tokens:      tokensWidth,
+		Started:     startedWidth,
+		Duration:    durationWidth,
+		LastMessage: lastMessageWidth,
 	}
 }
 
@@ -371,12 +370,11 @@ func CreateSessionTableWithDynamicWidths(width int, sessions []SessionInfo) tabl
 	columns := []table.Column{
 		table.NewColumn("version", "VER", widths.Version),
 		table.NewColumn("gitbranch", "BRANCH", widths.GitBranch),
+		table.NewColumn("lastmsgtime", "LAST MSG", widths.LastMsgTime),
 		table.NewColumn("tokens", "TOKENS", widths.Tokens),
 		table.NewColumn("started", "START", widths.Started),
 		table.NewColumn("duration", "LEN", widths.Duration),
-		table.NewColumn("userprompts", "USR", widths.UserPrompts),
-		table.NewColumn("interruptions", "INT", widths.Interruptions),
-		table.NewColumn("title", "TITLE", widths.Title),
+		table.NewColumn("lastmessage", "PREVIEW", widths.LastMessage),
 	}
 
 	t := table.New(columns).
