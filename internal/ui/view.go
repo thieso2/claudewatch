@@ -79,6 +79,11 @@ func (m Model) renderSessionDetailView() string {
 		Foreground(lipgloss.Color("10"))
 	statsText := statsStyle.Render(stats.GetSummary())
 
+	// Detailed stats
+	detailedStats := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8")).
+		Render(stats.GetDetailedStats())
+
 	// Messages section
 	var messagesContent string
 	if m.messageError != "" {
@@ -105,6 +110,7 @@ func (m Model) renderSessionDetailView() string {
 		pathText,
 		"",
 		statsText,
+		detailedStats,
 		"",
 		"Messages:",
 		messagesContent,

@@ -8,6 +8,33 @@ import (
 	"time"
 )
 
+// JSONL Format Documentation
+// ==========================
+// Claude Code stores conversation sessions in JSONL files (1 JSON object per line)
+// Located in: ~/.claude/projects/<encoded-path>/<session-id>.jsonl
+//
+// Session Index File: sessions-index.json
+// {
+//   "version": 1,                           // Format version (may change in future)
+//   "entries": [],                          // Session metadata entries
+//   "originalPath": "/path/to/project"      // Original working directory
+// }
+//
+// Session JSONL Entry Structure (version indicated by .version field)
+// Common fields:
+// - type: "user", "assistant", "progress", "system", "file-history-snapshot", "queue-operation"
+// - timestamp: ISO8601 timestamp
+// - message: { role: "user" | "assistant", content: string | array }
+// - version: Claude version that created the entry (e.g., "2.1.25")
+//
+// Entry Types:
+// - user: User message
+// - assistant: AI assistant response
+// - progress: Operation progress update
+// - file-history-snapshot: File state backup
+// - system: System event
+// - queue-operation: Task queue operation
+
 // SessionEntry represents a single entry in a session JSONL file
 type SessionEntry struct {
 	Type      string                 `json:"type"`
@@ -28,16 +55,21 @@ type Message struct {
 
 // SessionStats contains aggregated session statistics
 type SessionStats struct {
-	FilePath        string
-	CreatedAt       time.Time
-	LastActivity    time.Time
-	Duration        time.Duration
-	TotalMessages   int
-	UserMessages    int
+	FilePath          string
+	CreatedAt         time.Time
+	LastActivity      time.Time
+	Duration          time.Duration
+	TotalMessages     int
+	UserMessages      int
 	AssistantMessages int
-	CompactCount    int
-	MessageHistory  []Message
-	ErrorCount      int
+	ProgressEvents    int
+	SystemEvents      int
+	FileSnapshots     int
+	QueueOperations   int
+	CompactCount      int
+	MessageHistory    []Message
+	ErrorCount        int
+	ClaudeVersion     string // Version from the session file
 }
 
 // ParseSessionFile reads and parses a JSONL session file
@@ -59,10 +91,14 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 	for scanner.Scan() {
 		lineNum++
 		var entry SessionEntry
+		var rawData map[string]interface{}
 
 		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
 			continue // Skip malformed lines
 		}
+
+		// Also parse raw data for extracting version
+		json.Unmarshal(scanner.Bytes(), &rawData)
 
 		// Parse timestamp
 		var timestamp time.Time
@@ -71,6 +107,13 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 				timestamp = t
 			} else if t, err := time.Parse(time.RFC3339, entry.Timestamp); err == nil {
 				timestamp = t
+			}
+		}
+
+		// Extract Claude version from first entry that has it
+		if stats.ClaudeVersion == "" {
+			if version, ok := rawData["version"].(string); ok && version != "" {
+				stats.ClaudeVersion = version
 			}
 		}
 
@@ -120,6 +163,18 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 				}
 			}
 
+		case "progress":
+			stats.ProgressEvents++
+
+		case "system":
+			stats.SystemEvents++
+
+		case "file-history-snapshot":
+			stats.FileSnapshots++
+
+		case "queue-operation":
+			stats.QueueOperations++
+
 		case "compact":
 			stats.CompactCount++
 
@@ -143,14 +198,34 @@ func ParseSessionFile(filePath string) (*SessionStats, error) {
 // GetSummary returns a human-readable summary of session stats
 func (s *SessionStats) GetSummary() string {
 	duration := formatDuration(s.Duration)
+	versionStr := ""
+	if s.ClaudeVersion != "" {
+		versionStr = fmt.Sprintf(" | Claude %s", s.ClaudeVersion)
+	}
+
 	return fmt.Sprintf(
-		"Started: %s | Duration: %s | Messages: %d (User: %d, AI: %d) | Compacts: %d",
+		"Started: %s | Duration: %s | Messages: %d (User: %d, AI: %d)%s",
 		s.CreatedAt.Format("2006-01-02 15:04"),
 		duration,
 		s.TotalMessages,
 		s.UserMessages,
 		s.AssistantMessages,
-		s.CompactCount,
+		versionStr,
+	)
+}
+
+// GetDetailedStats returns a detailed breakdown of all session events
+func (s *SessionStats) GetDetailedStats() string {
+	return fmt.Sprintf(
+		"Messages: %d (User: %d, AI: %d) | Events: Progress: %d, System: %d, File Snapshots: %d, Queue: %d | Errors: %d",
+		s.TotalMessages,
+		s.UserMessages,
+		s.AssistantMessages,
+		s.ProgressEvents,
+		s.SystemEvents,
+		s.FileSnapshots,
+		s.QueueOperations,
+		s.ErrorCount,
 	)
 }
 
