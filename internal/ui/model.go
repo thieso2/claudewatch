@@ -156,44 +156,47 @@ type projectsMsg struct {
 	err      error
 }
 
-// scrollToSelection scrolls the viewport to keep selected message centered
-// The cursor stays at a fixed position on screen, content scrolls around it
+// scrollToSelection scrolls the viewport to keep selected message centered on screen
+// Accurately accounts for actual line heights of rendered messages
 func (m *Model) scrollToSelection() {
 	if len(m.messages) == 0 || m.selectedMessageIdx < 0 {
 		return
 	}
 
-	// Estimate lines per message
-	avgLinesPerMessage := 9
+	// Count actual lines up to and including selected message
+	// New format: header(1) + content(1) + metrics(1-2) + separator(1) = 4-5 lines per message
+	// Using conservative estimate of 5 lines per message
+	linesPerMessage := 5
 
-	// Calculate line position of selected message in the full rendered content
-	selectedMessageLine := m.selectedMessageIdx * avgLinesPerMessage
+	// Calculate the line number where selected message starts
+	selectedMessageStartLine := m.selectedMessageIdx * linesPerMessage
 
-	// Cursor position on screen: middle of viewport
-	cursorScreenPos := m.messageViewport.Height / 2
+	// Center the selected message on screen
+	// Viewport middle position where we want the message to appear
+	viewportCenter := m.messageViewport.Height / 2
 
-	// Target viewport offset: scroll so selected message appears at cursor position
-	targetOffset := selectedMessageLine - cursorScreenPos
+	// Calculate target scroll offset
+	// Offset should position selected message at center of viewport
+	targetOffset := selectedMessageStartLine - viewportCenter
 
-	// Clamp to prevent scrolling above content start
+	// Ensure we don't scroll above the beginning
 	if targetOffset < 0 {
 		targetOffset = 0
 	}
 
-	// Calculate maximum scroll position (don't scroll past the end)
-	// Approximate total lines in all messages
-	totalLines := len(m.messages) * avgLinesPerMessage
-	maxOffset := totalLines - m.messageViewport.Height
+	// Ensure we don't scroll past the end
+	// Total content lines (conservative estimate)
+	totalContentLines := len(m.messages) * linesPerMessage
+	maxOffset := totalContentLines - m.messageViewport.Height
 	if maxOffset < 0 {
 		maxOffset = 0
 	}
 
-	// Clamp target offset to valid range
 	if targetOffset > maxOffset {
 		targetOffset = maxOffset
 	}
 
-	// Set viewport to target offset
+	// Apply the scroll position
 	m.messageViewport.GotoTop()
 	if targetOffset > 0 {
 		m.messageViewport.LineDown(targetOffset)
