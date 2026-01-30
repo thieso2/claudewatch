@@ -57,3 +57,22 @@ func createSessionTable() table.Model {
 
 	return t
 }
+
+// createMessageTable initializes the message table
+func createMessageTable() table.Model {
+	columns := []table.Column{
+		table.NewColumn("role", "ROLE", 12),
+		table.NewColumn("content", "MESSAGE", 80),
+		table.NewColumn("time", "TIME", 16),
+	}
+
+	t := table.New(columns).
+		WithPageSize(15).
+		WithBaseStyle(
+			lipgloss.NewStyle().
+				Foreground(lipgloss.Color("255")),
+		).
+		Focused(true)
+
+	return t
+}

@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/evertras/bubble-table/table"
+	"github.com/thies/claudewatch/internal/monitor"
 )
 
 // Update handles incoming messages and updates the model
@@ -18,12 +19,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 		case "esc":
-			// Go back to process list if in session view
-			if m.viewMode == ViewSessions {
+			// Go back to previous view
+			if m.viewMode == ViewSessionDetail {
+				m.viewMode = ViewSessions
+				m.selectedSession = nil
+				m.sessionStats = nil
+				m.messages = nil
+				m.messageError = ""
+				return m, nil
+			} else if m.viewMode == ViewSessions {
 				m.viewMode = ViewProcesses
 				m.selectedProc = nil
 				m.sessions = nil
 				m.sessionError = ""
+				m.selectedSessionIdx = 0
 				return m, nil
 			}
 		case "r":
@@ -38,11 +47,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.refreshProcesses()
 			}
 		case "enter":
-			// Open session view for selected process
+			// Open session view for selected process or session detail for selected session
 			if m.viewMode == ViewProcesses && len(m.processes) > 0 && m.selectedProcIdx >= 0 && m.selectedProcIdx < len(m.processes) {
 				m.selectedProc = &m.processes[m.selectedProcIdx]
 				m.viewMode = ViewSessions
 				return m, m.loadSessions()
+			} else if m.viewMode == ViewSessions && len(m.sessions) > 0 && m.selectedSessionIdx >= 0 && m.selectedSessionIdx < len(m.sessions) {
+				m.viewMode = ViewSessionDetail
+				return m, m.loadSessionDetail()
 			}
 		}
 		// Fall through to table handling for navigation and other keys
@@ -74,6 +86,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case sessionDetailMsg:
+		if msg.err != nil {
+			m.messageError = msg.err.Error()
+		} else {
+			m.messageError = ""
+			m.sessionStats = msg.stats
+			m.updateMessageTable()
+		}
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		// Handle terminal resize
 		m.table = m.table.WithPageSize(msg.Height - 4)
@@ -98,8 +120,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-	} else {
+	} else if m.viewMode == ViewSessions {
 		m.sessionTable, cmd = m.sessionTable.Update(msg)
+		// Track arrow key presses for session selection
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			switch keyMsg.String() {
+			case "up":
+				if m.selectedSessionIdx > 0 {
+					m.selectedSessionIdx--
+				}
+			case "down":
+				if m.selectedSessionIdx < len(m.sessions)-1 {
+					m.selectedSessionIdx++
+				}
+			}
+		}
+	} else if m.viewMode == ViewSessionDetail {
+		m.messageTable, cmd = m.messageTable.Update(msg)
 	}
 	return m, cmd
 }
@@ -140,6 +177,44 @@ func (m *Model) updateSessionTable() {
 	}
 
 	m.sessionTable = m.sessionTable.WithRows(rows)
+}
+
+// updateMessageTable rebuilds the message table with current message data
+func (m *Model) updateMessageTable() {
+	if m.sessionStats == nil {
+		return
+	}
+
+	// Type assertion to get the stats
+	stats, ok := m.sessionStats.(*monitor.SessionStats)
+	if !ok {
+		return
+	}
+
+	// Convert messages to table rows
+	rows := make([]table.Row, len(stats.MessageHistory))
+
+	for i, msg := range stats.MessageHistory {
+		// Truncate content for display
+		content := msg.Content
+		if len(content) > 76 {
+			content = content[:73] + "..."
+		}
+		// Replace newlines
+		for j := 0; j < len(content); j++ {
+			if content[j] == '\n' {
+				content = content[:j] + " " + content[j+1:]
+			}
+		}
+
+		rows[i] = table.NewRow(table.RowData{
+			"role":    msg.Role,
+			"content": content,
+			"time":    msg.Timestamp.Format("15:04:05"),
+		})
+	}
+
+	m.messageTable = m.messageTable.WithRows(rows)
 }
 
 // Helper functions for formatting

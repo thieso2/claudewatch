@@ -17,12 +17,21 @@ type SessionInfo struct {
 	Path    string
 }
 
+// MessageRow represents a message for display in the message table
+type MessageRow struct {
+	Index   int
+	Role    string
+	Content string
+	Time    string
+}
+
 // ViewMode represents the current view being displayed
 type ViewMode int
 
 const (
 	ViewProcesses ViewMode = iota
 	ViewSessions
+	ViewSessionDetail
 )
 
 // Model represents the main UI state
@@ -44,6 +53,15 @@ type Model struct {
 	sessionTable     table.Model
 	sessions         []SessionInfo
 	sessionError     string
+	selectedSessionIdx int
+
+	// Session detail view
+	selectedSession  *SessionInfo
+	sessionStats     interface{} // Will hold *monitor.SessionStats
+	messageTable     table.Model
+	messages         []MessageRow
+	messageError     string
+	scrollOffset     int
 }
 
 // tickMsg is used for periodic updates
@@ -61,6 +79,12 @@ type sessionsMsg struct {
 	err      error
 }
 
+// sessionDetailMsg carries loaded session detail data
+type sessionDetailMsg struct {
+	stats interface{} // *monitor.SessionStats
+	err   error
+}
+
 // NewModel creates a new UI model
 func NewModel(updateInterval time.Duration, showHelpers bool) Model {
 	m := Model{
@@ -74,6 +98,7 @@ func NewModel(updateInterval time.Duration, showHelpers bool) Model {
 
 	m.table = createTable()
 	m.sessionTable = createSessionTable()
+	m.messageTable = createMessageTable()
 	return m
 }
 
@@ -129,5 +154,25 @@ func (m Model) loadSessions() tea.Cmd {
 		}
 
 		return sessionsMsg{sessions: sessionInfos}
+	}
+}
+
+// loadSessionDetail loads detailed stats for a session file
+func (m Model) loadSessionDetail() tea.Cmd {
+	if m.selectedSessionIdx < 0 || m.selectedSessionIdx >= len(m.sessions) {
+		return nil
+	}
+
+	selectedSession := &m.sessions[m.selectedSessionIdx]
+
+	return func() tea.Msg {
+		stats, err := monitor.ParseSessionFile(selectedSession.Path)
+		if err != nil {
+			return sessionDetailMsg{
+				err: err,
+			}
+		}
+
+		return sessionDetailMsg{stats: stats}
 	}
 }

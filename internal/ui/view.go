@@ -4,12 +4,17 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/thies/claudewatch/internal/monitor"
 )
 
 // View renders the UI
 func (m Model) View() string {
 	if m.quitting {
 		return "Goodbye!\n"
+	}
+
+	if m.viewMode == ViewSessionDetail {
+		return m.renderSessionDetailView()
 	}
 
 	if m.viewMode == ViewSessions {
@@ -42,6 +47,68 @@ func (m Model) renderEmpty() string {
 		lipgloss.Left,
 		header,
 		content,
+		footer,
+	)
+}
+
+// renderSessionDetailView displays detailed information about a session
+func (m Model) renderSessionDetailView() string {
+	if m.sessionStats == nil {
+		return "Error: No session data loaded\n"
+	}
+
+	// Type assertion
+	stats, ok := m.sessionStats.(*monitor.SessionStats)
+	if !ok {
+		return "Error: Invalid session data\n"
+	}
+
+	// Header with session title
+	headerTitle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("11")).
+		Render("Session Details")
+
+	sessionPath := fmt.Sprintf("Path: %s", truncatePath(stats.FilePath, 60))
+	pathStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	pathText := pathStyle.Render(sessionPath)
+
+	// Stats section
+	statsStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("10"))
+	statsText := statsStyle.Render(stats.GetSummary())
+
+	// Messages section
+	var messagesContent string
+	if m.messageError != "" {
+		errorStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("1"))
+		messagesContent = errorStyle.Render("Error: " + m.messageError)
+	} else if len(stats.MessageHistory) == 0 {
+		messagesContent = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("8")).
+			Render("No messages in this session")
+	} else {
+		messagesContent = m.messageTable.View()
+	}
+
+	// Footer
+	footerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
+	helpText := "↑/↓: Navigate  |  esc: Back  |  q: Quit"
+	footer := footerStyle.Render(helpText)
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		headerTitle,
+		pathText,
+		"",
+		statsText,
+		"",
+		"Messages:",
+		messagesContent,
+		"",
 		footer,
 	)
 }
