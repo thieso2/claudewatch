@@ -15,11 +15,27 @@ jobs:
         include:
           - os: macOS (Intel)
             runner: macos-13
+            goos: darwin
             goarch: amd64
+            cgo_enabled: 1
 
           - os: macOS (ARM64)
             runner: macos-latest
+            goos: darwin
             goarch: arm64
+            cgo_enabled: 1
+
+          - os: Linux (x86_64)
+            runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            cgo_enabled: 0
+
+          - os: Linux (ARM64)
+            runner: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            cgo_enabled: 0
 
     steps:
       - name: Checkout code
@@ -40,9 +56,9 @@ jobs:
 
       - name: Build binary
         env:
-          GOOS: darwin
+          GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 1
+          CGO_ENABLED: ${{ matrix.cgo_enabled }}
         run: go build -v -o claudewatch-test ./cmd/claudewatch
 
       - name: Verify binary

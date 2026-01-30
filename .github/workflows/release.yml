@@ -14,17 +14,41 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macOS
-            runner: macos-latest
+          # macOS builds (Intel)
+          - os: macOS (Intel)
+            runner: macos-13
+            goos: darwin
             goarch: amd64
+            cgo_enabled: 1
             artifact: claudewatch-darwin-amd64
             upload_name: claudewatch-darwin-amd64
 
-          - os: macOS ARM64
+          # macOS builds (ARM64/Apple Silicon)
+          - os: macOS (ARM64)
             runner: macos-latest
+            goos: darwin
             goarch: arm64
+            cgo_enabled: 1
             artifact: claudewatch-darwin-arm64
             upload_name: claudewatch-darwin-arm64
+
+          # Linux builds (x86_64)
+          - os: Linux (x86_64)
+            runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            cgo_enabled: 0
+            artifact: claudewatch-linux-amd64
+            upload_name: claudewatch-linux-amd64
+
+          # Linux builds (ARM64)
+          - os: Linux (ARM64)
+            runner: ubuntu-latest
+            goos: linux
+            goarch: arm64
+            cgo_enabled: 0
+            artifact: claudewatch-linux-arm64
+            upload_name: claudewatch-linux-arm64
 
     steps:
       - name: Checkout code
@@ -37,9 +61,9 @@ jobs:
 
       - name: Build binary
         env:
-          GOOS: darwin
+          GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 1
+          CGO_ENABLED: ${{ matrix.cgo_enabled }}
         run: |
           go build \
             -ldflags="-s -w -X main.Version=${{ github.ref_name }}" \
@@ -114,6 +138,22 @@ jobs:
             chmod +x /usr/local/bin/claudewatch
             ```
 
+            ### Linux x86_64
+            ```bash
+            wget https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-amd64-${{ github.ref_name }}.tar.gz
+            tar xzf claudewatch-linux-amd64-${{ github.ref_name }}.tar.gz
+            sudo mv claudewatch-linux-amd64 /usr/local/bin/claudewatch
+            chmod +x /usr/local/bin/claudewatch
+            ```
+
+            ### Linux ARM64
+            ```bash
+            wget https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-arm64-${{ github.ref_name }}.tar.gz
+            tar xzf claudewatch-linux-arm64-${{ github.ref_name }}.tar.gz
+            sudo mv claudewatch-linux-arm64 /usr/local/bin/claudewatch
+            chmod +x /usr/local/bin/claudewatch
+            ```
+
             ## Verification
 
             Verify the integrity of downloaded binaries using SHA256:
@@ -124,9 +164,11 @@ jobs:
 
             ### Release Assets
 
-            | File | Size | Hash |
-            |------|------|------|
-            | `claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz` | [Download](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz.sha256) |
-            | `claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz` | [Download](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz.sha256) |
+            | Platform | Architecture | Download | SHA256 |
+            |----------|--------------|----------|--------|
+            | macOS | Intel (x86_64) | [claudewatch-darwin-amd64](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz.sha256) |
+            | macOS | ARM64 (Apple Silicon) | [claudewatch-darwin-arm64](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz.sha256) |
+            | Linux | x86_64 | [claudewatch-linux-amd64](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-amd64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-amd64-${{ github.ref_name }}.tar.gz.sha256) |
+            | Linux | ARM64 | [claudewatch-linux-arm64](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-arm64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-arm64-${{ github.ref_name }}.tar.gz.sha256) |
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
