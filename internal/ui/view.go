@@ -184,19 +184,13 @@ func (m Model) renderSessionView() string {
 
 	// Show table or empty message
 	var content string
-	if m.filteredMessageCount == 0 {
-		// Show feedback message when no messages in filter
-		var msg string
-		if m.messageError != "" {
-			msg = m.messageError
-		} else {
-			msg = "No messages to display"
-		}
+	if len(m.sessions) == 0 {
+		// Show empty message when no sessions found
 		content = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("3")).
-			Render(msg)
+			Foreground(lipgloss.Color("8")).
+			Render("No sessions found for this directory")
 	} else {
-		content = m.messageTable.View()
+		content = m.sessionTable.View()
 	}
 
 	footerStyle := lipgloss.NewStyle().
