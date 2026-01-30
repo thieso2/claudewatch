@@ -264,6 +264,7 @@ func (m Model) renderProjectsView() string {
 		lipgloss.Left,
 		headerLine,
 		"",
+		"",
 		content,
 		"",
 		footer,
