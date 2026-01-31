@@ -64,7 +64,25 @@ func isClaudeProcess(proc *process.Process) bool {
 	}
 
 	// Check for Claude executable paths
-	if strings.Contains(exe, "claude") && !strings.Contains(exe, "Claude.app") {
+	if strings.Contains(exe, "Claude.app") {
+		return false
+	}
+
+	// Must contain "claude" in the path
+	if !strings.Contains(exe, "claude") {
+		return false
+	}
+
+	// Verify it's actually located in a package manager's installation directory
+	// Homebrew: /opt/homebrew/Caskroom/claude-code/*/claude (or /usr/local/Caskroom/)
+	// Linux: /opt/*/claude-code/*/claude or similar package paths
+	if strings.Contains(exe, "Caskroom/claude") || strings.Contains(exe, "opt/homebrew") ||
+		strings.Contains(exe, "/opt/") && strings.Contains(exe, "claude") {
+		return true
+	}
+
+	// Also check if it's the symlinked binary at /opt/homebrew/bin/claude or similar
+	if strings.Contains(exe, "/homebrew/bin/claude") || strings.Contains(exe, "/usr/local/bin/claude") {
 		return true
 	}
 
