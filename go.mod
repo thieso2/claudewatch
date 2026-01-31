@@ -1,4 +1,4 @@
-module github.com/thies/claudewatch
+module github.com/thieso2/promptwatch
 
 go 1.25.6
 
