@@ -16,7 +16,7 @@ jobs:
         include:
           # macOS builds (Intel)
           - os: macOS (Intel)
-            runner: macos-13
+            runner: macos-15-intel
             goos: darwin
             goarch: amd64
             cgo_enabled: 1
