@@ -6,7 +6,7 @@ import (
 	"time"
 
 	gopsutil_process "github.com/shirou/gopsutil/v4/process"
-	"github.com/thies/claudewatch/internal/types"
+	"github.com/thieso2/promptwatch/internal/types"
 )
 
 // RefreshMetrics updates metrics for an existing process

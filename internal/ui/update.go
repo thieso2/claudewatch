@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/evertras/bubble-table/table"
-	"github.com/thies/claudewatch/internal/monitor"
+	"github.com/thieso2/promptwatch/internal/monitor"
 )
 
 // Cost constants based on Claude API pricing

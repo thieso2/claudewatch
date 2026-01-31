@@ -1,10 +1,10 @@
-# claudewatch
+# promptwatch
 
 A comprehensive TUI monitor for Claude Code CLI instances on macOS. View real-time CPU/memory metrics, session history, complete conversation messages, and more—all in an interactive terminal interface.
 
-**Monitor your Claude coding sessions with ease.** `claudewatch` gives you instant visibility into all running Claude instances, their working directories, session history, and full conversation transcripts with detailed message analytics.
+**Monitor your Claude coding sessions with ease.** `promptwatch` gives you instant visibility into all running Claude instances, their working directories, session history, and full conversation transcripts with detailed message analytics.
 
-<img alt="claudewatch demo" src="https://via.placeholder.com/600x400?text=claudewatch+TUI" width="600">
+<img alt="promptwatch demo" src="https://via.placeholder.com/600x400?text=promptwatch+TUI" width="600">
 
 ## Features
 
@@ -53,18 +53,18 @@ A comprehensive TUI monitor for Claude Code CLI instances on macOS. View real-ti
 ### Build from source
 
 ```bash
-git clone https://github.com/thieso2/claudewatch.git
-cd claudewatch
-go build -o bin/claudewatch ./cmd/claudewatch
+git clone https://github.com/thieso2/promptwatch.git
+cd promptwatch
+go build -o bin/promptwatch ./cmd/promptwatch
 ```
 
 ### Install globally
 
 ```bash
-go install github.com/thieso2/claudewatch/cmd/claudewatch@latest
+go install github.com/thieso2/promptwatch/cmd/promptwatch@latest
 ```
 
-This installs the binary to `$GOPATH/bin/claudewatch` (typically `~/go/bin/claudewatch`).
+This installs the binary to `$GOPATH/bin/promptwatch` (typically `~/go/bin/promptwatch`).
 
 Add to your PATH if not already there:
 ```bash
@@ -75,13 +75,13 @@ export PATH="$HOME/go/bin:$PATH"
 
 ```bash
 # Start monitoring Claude instances
-claudewatch
+promptwatch
 
 # Monitor with custom refresh interval
-claudewatch --interval 500ms
+promptwatch --interval 500ms
 
 # Show all processes including MCP helpers
-claudewatch --show-helpers
+promptwatch --show-helpers
 ```
 
 Press `q` or `Ctrl+C` to quit.
@@ -137,7 +137,7 @@ Press `q` or `Ctrl+C` to quit.
 ### Command-line Options
 
 ```bash
-claudewatch [flags]
+promptwatch [flags]
 
 Flags:
   -interval duration
@@ -150,13 +150,13 @@ Flags:
 
 ```bash
 # Monitor with 2-second refresh
-claudewatch --interval 2s
+promptwatch --interval 2s
 
 # View all processes including helpers with faster refresh
-claudewatch --interval 500ms --show-helpers
+promptwatch --interval 500ms --show-helpers
 
 # Standard monitoring
-claudewatch
+promptwatch
 ```
 
 ## Display Columns
@@ -187,7 +187,7 @@ Each message card shows 4 lines:
 
 ## Message Analytics
 
-When viewing a message in detail, `claudewatch` displays comprehensive analytics:
+When viewing a message in detail, `promptwatch` displays comprehensive analytics:
 
 ### User Messages
 - Timestamp of when you sent the prompt
@@ -214,8 +214,8 @@ When viewing a message in detail, `claudewatch` displays comprehensive analytics
 ### Directory Structure
 
 ```
-claudewatch/
-├── cmd/claudewatch/
+promptwatch/
+├── cmd/promptwatch/
 │   └── main.go                      # Entry point, CLI flags
 ├── internal/
 │   ├── monitor/
@@ -257,7 +257,7 @@ MCP helper processes (identified by `--claude-in-chrome-mcp` flag) can be toggle
 
 ### Working Directory Discovery
 
-On macOS, `claudewatch` uses CGo to call the native `proc_pidinfo` system call:
+On macOS, `promptwatch` uses CGo to call the native `proc_pidinfo` system call:
 ```c
 proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, ...)
 ```
@@ -286,14 +286,14 @@ Each session's `.jsonl` file is parsed line-by-line with a 512KB initial buffer 
 
 ```bash
 # Standard build
-go build -o bin/claudewatch ./cmd/claudewatch
+go build -o bin/promptwatch ./cmd/promptwatch
 
 # Optimized build (smaller binary)
-go build -ldflags="-s -w" -o bin/claudewatch ./cmd/claudewatch
+go build -ldflags="-s -w" -o bin/promptwatch ./cmd/promptwatch
 
 # Build with version info
 VERSION=$(git describe --tags --always)
-go build -ldflags="-s -w -X main.Version=$VERSION" -o bin/claudewatch ./cmd/claudewatch
+go build -ldflags="-s -w -X main.Version=$VERSION" -o bin/promptwatch ./cmd/promptwatch
 ```
 
 ## Troubleshooting
@@ -307,7 +307,7 @@ xcode-select --install
 ### No Claude processes appear
 1. Verify Claude CLI is running: `ps aux | grep claude`
 2. Try manual refresh with `r` key
-3. Check with `claudewatch --show-helpers` to see all processes
+3. Check with `promptwatch --show-helpers` to see all processes
 4. Look at the footer message for any errors
 
 ### Permission denied for working directory
@@ -319,8 +319,8 @@ Some processes may not allow directory access (e.g., processes from other users)
 - Look for error messages in the session view footer
 
 ### Memory usage or slowness with large sessions
-`claudewatch` uses fixed-height message cards (4 lines each) for efficient rendering, even with thousands of messages. If you experience slowness:
-1. Try increasing refresh interval: `claudewatch --interval 2s`
+`promptwatch` uses fixed-height message cards (4 lines each) for efficient rendering, even with thousands of messages. If you experience slowness:
+1. Try increasing refresh interval: `promptwatch --interval 2s`
 2. Filter messages to reduce visible count: `u` for prompts only
 3. Ensure terminal has sufficient scrollback buffer
 
@@ -340,7 +340,7 @@ Some processes may not allow directory access (e.g., processes from other users)
 - [ ] Process tree view (parent-child relationships)
 - [ ] Export session to markdown/PDF
 - [ ] Alert on process crash or token limit exceeded
-- [ ] Configuration file (~/.claudewatchrc)
+- [ ] Configuration file (~/.promptwatchrc)
 - [ ] Custom color schemes
 - [ ] Search/filter by keywords in messages
 

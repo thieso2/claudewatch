@@ -1,6 +1,6 @@
-# claudewatch Detailed UI Information Guide
+# promptwatch Detailed UI Information Guide
 
-This document describes all the detailed information now displayed throughout the claudewatch UI.
+This document describes all the detailed information now displayed throughout the promptwatch UI.
 
 ---
 

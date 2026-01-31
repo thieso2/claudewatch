@@ -493,9 +493,9 @@ if timestamps:
 
 ## Tips for Exploration
 
-### Using claudewatch to Explore Sessions
+### Using promptwatch to Explore Sessions
 
-claudewatch now extracts and displays:
+promptwatch now extracts and displays:
 - **STARTED**: Session start time
 - **LENGTH**: Total duration
 - **USER**: Number of user prompts
@@ -535,5 +535,5 @@ See `version` field in `sessions-index.json` and individual events for format ve
 ## Related Files
 
 - **[internal/monitor/session_parser.go](./internal/monitor/session_parser.go)** - Go code that parses JSONL
-- **[internal/ui/model.go](./internal/ui/model.go)** - claudewatch SessionInfo structure
+- **[internal/ui/model.go](./internal/ui/model.go)** - promptwatch SessionInfo structure
 - **[CLAUDE.md](./CLAUDE.md)** - Claude Code CLI user instructions

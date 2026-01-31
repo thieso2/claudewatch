@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/shirou/gopsutil/v4/process"
-	"github.com/thies/claudewatch/internal/types"
+	"github.com/thieso2/promptwatch/internal/types"
 )
 
 // FindClaudeProcesses discovers all running Claude instances and returns their metrics

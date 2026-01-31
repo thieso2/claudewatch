@@ -10,8 +10,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/evertras/bubble-table/table"
-	"github.com/thies/claudewatch/internal/monitor"
-	"github.com/thies/claudewatch/internal/types"
+	"github.com/thieso2/promptwatch/internal/monitor"
+	"github.com/thieso2/promptwatch/internal/types"
 )
 
 // SessionInfo represents session information for display

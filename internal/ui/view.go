@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/thies/claudewatch/internal/monitor"
+	"github.com/thieso2/promptwatch/internal/monitor"
 )
 
 // View renders the UI
@@ -42,7 +42,7 @@ func (m Model) renderEmpty() string {
 	header := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("11")).
-		Render("claudewatch")
+		Render("promptwatch")
 
 	content := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("8")).
@@ -352,7 +352,7 @@ func (m Model) renderWithTable() string {
 	headerTitle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("11")).
-		Render("claudewatch")
+		Render("promptwatch")
 
 	status := fmt.Sprintf("%d instances", len(m.processes))
 	if m.showHelpers {

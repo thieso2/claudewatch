@@ -8,8 +8,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/thies/claudewatch/internal/monitor"
-	"github.com/thies/claudewatch/internal/ui"
+	"github.com/thieso2/promptwatch/internal/monitor"
+	"github.com/thieso2/promptwatch/internal/ui"
 )
 
 func main() {
