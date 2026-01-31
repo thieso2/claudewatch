@@ -124,7 +124,7 @@ jobs:
 
             ### macOS Intel (x86_64)
             ```bash
-            wget https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz
+            wget https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz
             tar xzf claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz
             mv claudewatch-darwin-amd64 /usr/local/bin/claudewatch
             chmod +x /usr/local/bin/claudewatch
@@ -132,7 +132,7 @@ jobs:
 
             ### macOS ARM64 (Apple Silicon)
             ```bash
-            wget https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz
+            wget https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz
             tar xzf claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz
             mv claudewatch-darwin-arm64 /usr/local/bin/claudewatch
             chmod +x /usr/local/bin/claudewatch
@@ -140,7 +140,7 @@ jobs:
 
             ### Linux x86_64
             ```bash
-            wget https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-amd64-${{ github.ref_name }}.tar.gz
+            wget https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-linux-amd64-${{ github.ref_name }}.tar.gz
             tar xzf claudewatch-linux-amd64-${{ github.ref_name }}.tar.gz
             sudo mv claudewatch-linux-amd64 /usr/local/bin/claudewatch
             chmod +x /usr/local/bin/claudewatch
@@ -148,7 +148,7 @@ jobs:
 
             ### Linux ARM64
             ```bash
-            wget https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-arm64-${{ github.ref_name }}.tar.gz
+            wget https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-linux-arm64-${{ github.ref_name }}.tar.gz
             tar xzf claudewatch-linux-arm64-${{ github.ref_name }}.tar.gz
             sudo mv claudewatch-linux-arm64 /usr/local/bin/claudewatch
             chmod +x /usr/local/bin/claudewatch
@@ -166,9 +166,9 @@ jobs:
 
             | Platform | Architecture | Download | SHA256 |
             |----------|--------------|----------|--------|
-            | macOS | Intel (x86_64) | [claudewatch-darwin-amd64](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz.sha256) |
-            | macOS | ARM64 (Apple Silicon) | [claudewatch-darwin-arm64](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz.sha256) |
-            | Linux | x86_64 | [claudewatch-linux-amd64](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-amd64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-amd64-${{ github.ref_name }}.tar.gz.sha256) |
-            | Linux | ARM64 | [claudewatch-linux-arm64](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-arm64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/claudewatch/releases/download/${{ github.ref_name }}/claudewatch-linux-arm64-${{ github.ref_name }}.tar.gz.sha256) |
+            | macOS | Intel (x86_64) | [claudewatch-darwin-amd64](https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-amd64-${{ github.ref_name }}.tar.gz.sha256) |
+            | macOS | ARM64 (Apple Silicon) | [claudewatch-darwin-arm64](https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-darwin-arm64-${{ github.ref_name }}.tar.gz.sha256) |
+            | Linux | x86_64 | [claudewatch-linux-amd64](https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-linux-amd64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-linux-amd64-${{ github.ref_name }}.tar.gz.sha256) |
+            | Linux | ARM64 | [claudewatch-linux-arm64](https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-linux-arm64-${{ github.ref_name }}.tar.gz) | [SHA256](https://github.com/thieso2/promptwatch/releases/download/${{ github.ref_name }}/claudewatch-linux-arm64-${{ github.ref_name }}.tar.gz.sha256) |
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
